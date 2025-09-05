@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>팀 캘린더 · v17.8 (QuickAdd sticky)</title>
+<title>팀 캘린더 · v17.9 (담당자 미리보기 이미지 고정)</title>
 
 <!-- FullCalendar / html2canvas -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.19/index.min.css" />
@@ -94,9 +94,16 @@ button:hover,select:hover{border-color:#cbd5e1}
   background:#fff;border:1px solid #e5e7eb;border-radius:14px;
   padding:12px;box-shadow:var(--shadow-lg);
   display:flex;flex-direction:column;
-  max-height: min(92vh, 92dvh); /* 키보드/브라우저 UI 반영 */
+  max-height: min(92vh, 92dvh);
   overflow:auto;
 }
+/* ⬇ 담당자 선택 미리보기(옵션) 이미지 과대 노출 방지 */
+#quickAdd .options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#quickAdd .options .opt{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px}
+#quickAdd .options .opt.selected{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.12) inset}
+#quickAdd .options .opt img.avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;border:1px solid #e5e7eb}
+#quickAdd .options .opt img{max-width:100%;height:auto}
+/* (기존) 하단 버튼 고정 */
 #quickAdd .quick-actions{
   position:sticky; bottom:0;
   display:flex; gap:8px; justify-content:flex-end;
@@ -154,7 +161,7 @@ button:hover,select:hover{border-color:#cbd5e1}
 }
 .card-preview>.share-card{position:absolute;left:0;top:0;transform:scale(var(--k));transform-origin:top left}
 
-/* ====== 카드 본체 v5 (이전 기능 유지) ====== */
+/* ====== 카드 본체 v5 ====== */
 .share-card.vertical.v5{
   --c:#4f46e5;  --r:20px;  --sup:40px;
   --fs:1;      --sp:.75;
@@ -588,14 +595,15 @@ button:hover,select:hover{border-color:#cbd5e1}
     </div>
   </div>
 
-  <!-- 사진 보기 -->
+  <!-- 사진 보기 (담당자 미리보기: 이미지 과대 방지) -->
   <div class="modal" id="photoModal">
     <div class="scrim" data-close="#photoModal"></div>
     <div class="dialog" style="max-width:520px">
       <button class="close-x" data-close="#photoModal">✕</button>
       <h3 id="pmName">담당자</h3>
       <div style="display:flex;align-items:center;justify-content:center;padding:10px">
-        <img id="pmImg" src="" alt="" style="max-width:100%;max-height:60vh;border-radius:12px;border:1px solid #e5e7eb;object-fit:cover"/>
+        <!-- ⬇ 수정: contain + width:100% + auto height -->
+        <img id="pmImg" src="" alt="" style="max-width:100%;max-height:65dvh;height:auto;border-radius:12px;border:1px solid #e5e7eb;object-fit:contain"/>
       </div>
     </div>
   </div>
@@ -867,7 +875,7 @@ function renderWeekBoard(){
 function updateRangeText(){const v=calendar.view; const s=new Date(v.currentStart); const e=new Date(v.currentEnd-1); $('#exportRange').textContent=`${fmt(s,{year:'numeric',month:'short',day:'numeric'})} – ${fmt(e,{year:'numeric',month:'short',day:'numeric'})}`;}
 async function exportBoardPNG(){const node=$('#calendarWrap'); const canvas=await html2canvas(node,{backgroundColor:'#fff',scale:2,useCORS:true}); const url=canvas.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download=`team-week-${new Date().toISOString().slice(0,10)}.png`; a.click();}
 
-/* ===== 카드 빌드 ===== (이전과 동일) */
+/* ===== 카드 빌드 ===== */
 function buildCardHTML(data, layout){
   const L=layout||PRESETS.cardLayout, opt=L.options||{}, dims=data.dims||getCardDims();
   const supAlign = (opt.align?.supporters||'right');
@@ -1041,7 +1049,7 @@ async function downloadEventCardPNG(){ if(!lastEventForCard) return;
   toast('PNG로 저장했습니다');
 }
 async function copyEventCardToClipboard(){ if(!lastEventForCard) return;
-  try{const blob=await captureCardToBlob(lastEventForCard); await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]); toast('클립보드로 복사했습니다');}
+  try{const blob=await captureCardToBlob(lastEventForCard); await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]); toast('복사했습니다');}
   catch{toast('복사 불가한 환경입니다. PNG 저장을 이용하세요.');}
 }
 
@@ -1306,9 +1314,8 @@ function ensureQuickAddFit(x,y){
     qa.style.top = '0';
     qa.style.right = '0';
     qa.style.bottom = '0';
-    // CSS의 max-height(min(92vh,92dvh))에 맡김
     card.style.width = 'min(720px, 100vw)';
-    card.style.maxHeight = '';             // JS로 강제값 부여하지 않음
+    card.style.maxHeight = '';
     card.style.borderRadius = '16px 16px 0 0';
     return;
   }
@@ -1448,7 +1455,7 @@ function initPresetModal(){
 
   $('#btnOutSave').onclick=()=>{let size=$('#outCardSize').value; if(size==='custom'){ const w=Math.max(600,+$('#outW').value||1080), h=Math.max(600,+$('#outH').value||1350); size=`${w}x${h}`; } PRESETS.output={title:$('#outTitle').value.trim(), sub:$('#outSub').value.trim(), accent:$('#outAccent').value||'#4f46e5', cardSize:size}; PresetStore.save(PRESETS); toast('출력 설정 저장됨');};
 
-  $('#btnExport').onclick=()=>{ const data={presets:PRESETS,version:'v17.8'}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-settings.json'; a.click(); };
+  $('#btnExport').onclick=()=>{ const data={presets:PRESETS,version:'v17.9'}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-settings.json'; a.click(); };
   $('#btnImport').onclick=()=>$('#importFile').click();
   $('#importFile').onchange=async e=>{try{const f=e.target.files[0]; if(!f) return; const text=await f.text(); const d=JSON.parse(text||'{}.'); if(!d.presets) throw 0; PRESETS=d.presets; PresetStore.save(PRESETS); renderPresetLists(); renderPresetOptions(); renderLayoutDesigner(); initShareModal(); renderWeekBoard(); toast('설정을 불러왔습니다');}catch{toast('가져오기 실패: JSON을 확인하세요.');}};
   $('#btnReset').onclick=()=>{ if(confirm('모든 설정을 기본값으로 되돌릴까요? (일정은 유지)')){ PRESETS=structuredClone(CONFIG.defaultPresets); PresetStore.save(PRESETS); renderPresetLists(); renderPresetOptions(); renderLayoutDesigner(); initShareModal(); renderWeekBoard(); toast('초기화했습니다'); }};
@@ -1547,7 +1554,7 @@ async function makeCardPNG(){
   const canvas=await html2canvas(sc,{backgroundColor:'#fff',scale:2,useCORS:true}); const url=canvas.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download=`card-${$('#cDate').value||toDateInput(new Date())}.png`; a.click();
 }
 
-/* ===== 카드 퀵튜너 ===== (생략 없이 포함) */
+/* ===== 카드 퀵튜너 ===== */
 function buildCardTuner(){
   const wrap=$('#cardTuner'); const o=PRESETS.cardLayout.options||{}; const dlg=$('#cardModal .dialog');
   const fitK = getFitScale(); if(PreviewZoom.scale==null) PreviewZoom.scale=fitK;
@@ -1847,7 +1854,7 @@ function applyQuickTuner(save){
 
 /* ===== 공유 링크 ===== */
 function createShareLink(){
-  const payload={v:17.8,title:$('#calendarTitle').value||'팀 캘린더',presets:{
+  const payload={v:17.9,title:$('#calendarTitle').value||'팀 캘린더',presets:{
       locations:PRESETS.locations.map(({id,label,color,address,map})=>({id,label,color,address,map})),
       instructors:PRESETS.instructors.map(({id,label,photo})=>({id,label,photo})),
       supporters:(PRESETS.supporters||[]).map(({id,label,photo})=>({id,label,photo})),
