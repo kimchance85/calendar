@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>팀 캘린더 · v17.7 (폰트 전부 조절)</title>
+<title>팀 캘린더 · v17.8 (QuickAdd sticky)</title>
 
 <!-- FullCalendar / html2canvas -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.19/index.min.css" />
@@ -86,36 +86,31 @@ button:hover,select:hover{border-color:#cbd5e1}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid var(--line);color:#0f172a;padding:10px 14px;border-radius:10px;display:none;z-index:2000;box-shadow:var(--shadow-md);}
 .toast.show{display:block}
 
-/* ===== QuickAdd ====== */
-#quickAdd{position:fixed;display:none;z-index:1900;}
-.quick-card{width:min(520px,94vw);background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:12px;box-shadow:var(--shadow-lg);}
-.quick-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-.quick-head h4{margin:0;font-size:16px;}
-.steps{display:flex;flex-direction:column;gap:8px;}
-.step-title{font-size:12px;color:#475569;margin:4px 0;}
-.options{display:flex;flex-wrap:wrap;gap:8px;}
-.opt{padding:8px 12px;border:1px solid #e5e7eb;border-radius:999px;background:#f8fafc;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;}
-.opt.selected{border-color:#6366f1;background:#eef2ff;}
-.opt img.avatar{width:22px;height:22px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb;}
-.summary{margin-top:8px;font-size:12px;color:#334155;background:#f8fafc;border:1px dashed #e2e8f0;padding:8px;border-radius:10px;}
-.qextra{display:flex;flex-direction:column;gap:10px;margin-top:8px;}
-.field{display:flex;flex-direction:column;gap:6px;}
-.route-up{display:flex;align-items:center;gap:10px;}
-.route-up img{width:92px;height:92px;border-radius:10px;object-fit:cover;border:1px solid #e5e7eb;}
-
-/* ▼ 서포터 리스트(QuickAdd): 드래그 정렬 대비 단일열 */
-.sup-grid{display:flex;flex-direction:column;gap:8px;}
-.sup-item{
-  border:1px solid #e5e7eb;border-radius:10px;padding:8px;
-  display:grid;grid-template-columns:18px auto 1fr auto;gap:8px;align-items:center;background:#fff;
+/* ===== QuickAdd (개선: sticky 액션바 + dvh 대응) ===== */
+#quickAdd{position:fixed; inset:0; display:none; z-index:1900;}
+#quickAdd.show{display:flex;}
+#quickAdd .quick-card{
+  width:min(520px,94vw);
+  background:#fff;border:1px solid #e5e7eb;border-radius:14px;
+  padding:12px;box-shadow:var(--shadow-lg);
+  display:flex;flex-direction:column;
+  max-height: min(92vh, 92dvh); /* 키보드/브라우저 UI 반영 */
+  overflow:auto;
 }
-.sup-item img{width:48px;height:48px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb;}
-.sup-item .nm{border:1px solid #e5e7eb;border-radius:8px;padding:6px 8px;width:100%;}
-.sup-item .del{border:1px solid #fecaca;background:#fff;color:#b91c1c;border-radius:8px;padding:6px 8px}
-.sup-addbtn{border:1px dashed #e5e7eb;background:#f8fafc;border-radius:10px;padding:8px}
-#qSupPresets .opt img{width:20px;height:20px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb}
+#quickAdd .quick-actions{
+  position:sticky; bottom:0;
+  display:flex; gap:8px; justify-content:flex-end;
+  padding:10px 0 calc(10px + env(safe-area-inset-bottom));
+  background:linear-gradient(180deg, rgba(255,255,255,0), #fff 40%);
+  border-top:1px solid #e5e7eb;
+  z-index:5;
+}
+@media (max-width:680px){
+  #quickAdd{align-items:flex-end; justify-content:center;}
+  #quickAdd .quick-card{width:min(720px, 100vw); border-radius:16px 16px 0 0;}
+}
 
-/* 상세내용 에디터 */
+/* 상세내용 에디터(퀵) */
 .qmemo .inline-actions{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .qmemo .inline-actions button{border:1px solid #e5e7eb;background:#fff;border-radius:8px;padding:6px 8px;font-size:12px}
 .qmemo textarea{
@@ -124,12 +119,28 @@ button:hover,select:hover{border-color:#cbd5e1}
   resize:vertical; transition:max-height .2s ease;
 }
 
-/* ====== 공통 모달 ====== */
+/* ▼ 서포터 리스트(QuickAdd) */
+.sup-grid{display:flex;flex-direction:column;gap:8px;}
+.sup-item{border:1px solid #e5e7eb;border-radius:10px;padding:8px;display:grid;grid-template-columns:18px auto 1fr auto;gap:8px;align-items:center;background:#fff;}
+.sup-item img{width:48px;height:48px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb;}
+.sup-item .nm{border:1px solid #e5e7eb;border-radius:8px;padding:6px 8px;width:100%;}
+.sup-item .del{border:1px solid #fecaca;background:#fff;color:#b91c1c;border-radius:8px;padding:6px 8px}
+.sup-addbtn{border:1px dashed #e5e7eb;background:#f8fafc;border-radius:10px;padding:8px}
+#qSupPresets .opt img{width:20px;height:20px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb}
+
+/* ====== 공통 모달 (개선: sticky 하단바) ====== */
 .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:16px;z-index:1800;}
 .modal.show{display:flex;}
 .scrim{position:absolute;inset:0;background:rgba(15,23,42,.35);backdrop-filter:blur(3px);}
-.dialog{position:relative;width:min(960px,96vw);max-height:92vh;overflow:auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px;box-shadow:var(--shadow-lg);}
+.dialog{position:relative;width:min(960px,96vw);max-height:min(92vh,92dvh);overflow:auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px;box-shadow:var(--shadow-lg);}
 #evCard{min-height:260px}
+.modal .dialog .savebar,
+.modal .dialog .sc-actions{
+  position:sticky; bottom:0;
+  padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+  background:linear-gradient(180deg, rgba(255,255,255,0), #fff 60%);
+  border-top:1px solid #e5e7eb; margin-top:8px; z-index:5;
+}
 
 /* ====== 카드 미리보기(고정 비율 스케일 + 줌) ====== */
 .card-preview{
@@ -143,12 +154,11 @@ button:hover,select:hover{border-color:#cbd5e1}
 }
 .card-preview>.share-card{position:absolute;left:0;top:0;transform:scale(var(--k));transform-origin:top left}
 
-/* ====== 카드 본체 v5 ====== */
+/* ====== 카드 본체 v5 (이전 기능 유지) ====== */
 .share-card.vertical.v5{
   --c:#4f46e5;  --r:20px;  --sup:40px;
   --fs:1;      --sp:.75;
   --f-meeting:24; --f-time:13; --f-name:18; --f-label:12; --f-value:15; --f-footer:12;
-  /* ▼ 추가: 세분화 글꼴 변수 */
   --f-desc:15; --f-supcap:12; --f-brand:14;
 
   --av:100px;
@@ -176,11 +186,11 @@ button:hover,select:hover{border-color:#cbd5e1}
   border:1px solid rgba(255,255,255,.45);color:#fff;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
   backdrop-filter:saturate(160%) blur(6px);-webkit-backdrop-filter:saturate(160%) blur(6px);
   margin:0 auto;
-  font-size:calc(var(--f-brand)*1px*var(--fs)); /* ▼ 추가: 브랜드 글씨 크기 */
+  font-size:calc(var(--f-brand)*1px*var(--fs));
 }
 .share-card.vertical.v5 .sc-brand .wave{position:absolute;left:0;right:0;bottom:-1px;height:10px;background:linear-gradient(90deg,rgba(255,255,255,.7),rgba(255,255,255,0));opacity:.45;pointer-events:none;-webkit-mask:radial-gradient(14px 8px at 10% 100%,#0000 30%,#000 35% 65%,#0000 70%) repeat-x left/120px 100%;mask:radial-gradient(14px 8px at 10% 100%,#0000 30%,#000 35% 65%,#0000 70%) repeat-x left/120px 100%;}
 
-/* 헤더 */
+/* 헤더(모임/시간) */
 .share-card.vertical.v5 .scv-top{
   margin:calc(-4px*var(--sp)) calc(-16px*var(--sp)) calc(8px*var(--sp));
   padding:calc(9px*var(--sp)) calc(16px*var(--sp));
@@ -191,7 +201,7 @@ button:hover,select:hover{border-color:#cbd5e1}
 .share-card.vertical.v5 .scv-time{display:inline-flex;align-items:center;gap:6px;padding:calc(3px*var(--sp)) calc(9px*var(--sp));border-radius:999px;color:#fff;font-weight:800;font-size:calc(var(--f-time)*1px*var(--fs));line-height:1.1;border:1px solid rgba(255,255,255,.45);background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.08));backdrop-filter:saturate(160%) blur(6px);-webkit-backdrop-filter:saturate(160%) blur(6px);}
 .share-card.vertical.v5 .scv-time svg{margin-right:2px}
 
-/* === 히어로(프로필) 래퍼 — 배경 이미지 + 문구 === */
+/* 히어로 래퍼(배경+문구) */
 .share-card.vertical.v5 .scv-hero-wrap{
   position:relative;
   margin:0 calc(-16px*var(--sp)) calc(10px*var(--sp));
@@ -199,12 +209,8 @@ button:hover,select:hover{border-color:#cbd5e1}
   background:#f8fafc;
 }
 .share-card.vertical.v5 .scv-hero-wrap .scv-hero-line{
-  display:flex;
-  gap:calc(var(--hero-gap,14) * 1px * var(--sp));
-  align-items:flex-start;
-  flex-wrap:wrap;
-  padding-bottom:calc(8px*var(--sp));
-  border-bottom:1px dashed #e5e7eb;
+  display:flex; gap:calc(var(--hero-gap,14) * 1px * var(--sp)); align-items:flex-start; flex-wrap:wrap;
+  padding-bottom:calc(8px*var(--sp)); border-bottom:1px dashed #e5e7eb;
 }
 .share-card.vertical.v5 .scv-hero-wrap.photo .scv-hero-line{border-color:rgba(255,255,255,.45)}
 .share-card.vertical.v5 .scv-hero-wrap.photo .scv-name,
@@ -243,14 +249,14 @@ button:hover,select:hover{border-color:#cbd5e1}
 .share-card.vertical.v5 .scv-info .lbl{font-size:calc(var(--f-label)*1px*var(--fs));color:#64748b}
 .share-card.vertical.v5 .scv-info .val{font-size:calc(var(--f-value)*1px*var(--fs));color:#0f172a;white-space:pre-wrap;white-space:break-spaces;word-break:keep-all}
 
-/* 서포터(인라인/행) + 정렬/위치 */
+/* 서포터(인라인/행) */
 .share-card.vertical.v5 .scv-supbar,
 .share-card.vertical.v5 .scv-suprow{
   display:flex; align-items:center; gap:10px; flex-wrap:wrap;
   transform:translate(var(--supx,0px), var(--supy,0px));
   cursor:grab; user-select:none;
 }
-.share-card.vertical.v5 .scv-supbar.dragging, .share-card.vertical.v5 .scv-suprow.dragging{cursor:grabbing}
+.share-card.vertical.v5 .scv-supbar.dragging,.share-card.vertical.v5 .scv-suprow.dragging{cursor:grabbing}
 
 .share-card.vertical.v5.sup-left  .scv-supbar{margin-left:0; margin-right:auto}
 .share-card.vertical.v5.sup-center .scv-supbar{margin-left:auto; margin-right:auto; justify-content:center}
@@ -272,11 +278,9 @@ button:hover,select:hover{border-color:#cbd5e1}
   box-shadow:0 0 0 2px #fff;
 }
 .share-card.vertical.v5 .sup-mini .cap{
-  font-size:calc(var(--f-supcap)*1px*var(--fs)); /* ▼ 추가: 서포터 캡션 폰트 */
+  font-size:calc(var(--f-supcap)*1px*var(--fs));
   font-weight:700; color:#0f172a; letter-spacing:-.01em; cursor:pointer
 }
-
-/* ▼ v17.5: 미리보기에서 서포터 드래그 중 스타일 */
 .share-card.vertical.v5 .sup-mini.dragging{opacity:.75; transform:scale(1.05)}
 
 /* 하단(상세/약도) */
@@ -284,9 +288,7 @@ button:hover,select:hover{border-color:#cbd5e1}
 .share-card.vertical.v5 .full-desc,.share-card.vertical.v5 .full-map{border:1px solid #e5e7eb;border-radius:12px;background:#fff;display:flex;flex-direction:column;overflow:hidden;flex:1 1 0}
 .share-card.vertical.v5 .full-desc .hd,.share-card.vertical.v5 .full-map .hd{font-size:calc(var(--f-label)*1px*var(--fs));color:#64748b;padding:8px 10px;border-bottom:1px dashed #e5e7eb}
 .share-card.vertical.v5 .full-desc .body{
-  padding:10px 12px;
-  font-size:calc(var(--f-desc)*1px*var(--fs)); /* ▼ 추가: 상세내용 폰트 */
-  line-height:1.6; color:#0f172a; overflow:auto;
+  padding:10px 12px; font-size:calc(var(--f-desc)*1px*var(--fs)); line-height:1.6; color:#0f172a; overflow:auto;
   white-space:pre-wrap; white-space:break-spaces;
 }
 .share-card.vertical.v5 .full-map .body{flex:1 1 auto;display:flex;align-items:center;justify-content:center;background:#f8fafc}
@@ -333,14 +335,11 @@ button:hover,select:hover{border-color:#cbd5e1}
 .card-tuner input[type="number"], .card-tuner select, .card-tuner input[type="range"], .card-tuner textarea{width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:6px 8px}
 .card-tuner textarea{min-height:110px;resize:both}
 
-/* === 드래그 정렬 UI === */
+/* 드래그 UI 공통 */
 .sup-item .handle, .ct-sup-item .handle{cursor:grab;color:#94a3b8;font-size:18px;user-select:none}
 .sup-item.dragging, .ct-sup-item.dragging{opacity:.7}
 .ct-sup-list{display:flex;flex-direction:column;gap:8px;}
-.ct-sup-item{
-  display:grid;grid-template-columns:18px auto 1fr auto;gap:8px;align-items:center;
-  border:1px solid #e5e7eb;border-radius:10px;padding:8px;background:#fff;
-}
+.ct-sup-item{display:grid;grid-template-columns:18px auto 1fr auto;gap:8px;align-items:center;border:1px solid #e5e7eb;border-radius:10px;padding:8px;background:#fff;}
 .ct-sup-item img.ph{width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb}
 .ct-sup-item .nm{font-weight:700;cursor:pointer}
 .ct-sup-item .del{border:1px solid #fecaca;background:#fff;color:#b91c1c;border-radius:8px;padding:6px 8px}
@@ -411,7 +410,7 @@ button:hover,select:hover{border-color:#cbd5e1}
     </div>
   </div>
 
-  <!-- 빠른 일정 추가 -->
+  <!-- 빠른 일정 추가 (개선판) -->
   <div id="quickAdd">
     <form id="quickForm" class="quick-card">
       <div class="quick-head"><h4 id="qHeading">빠른 일정 추가</h4><button type="button" id="qClose" class="xbtn">✕</button></div>
@@ -496,26 +495,26 @@ button:hover,select:hover{border-color:#cbd5e1}
 
       <div id="tab-ins" class="tabpane" style="display:none">
         <div class="list" id="listIns"></div>
-        <div class="addline" style="display:grid;grid-template-columns:auto 1fr auto;gap:8px;margin-top:10px">
+        <div class="addline" style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px">
           <div class="avatar-up" style="display:flex;gap:8px;align-items:center">
             <img id="addInsPreview" alt="" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb">
             <input id="addInsPhoto" type="file" accept="image/*" />
+            <input id="addInsName" type="text" placeholder="담당자명" />
           </div>
-          <input id="addInsName" type="text" placeholder="담당자명" />
-          <button id="btnAddIns">추가</button>
+          <div class="controls"><button id="btnAddIns">추가</button></div>
         </div>
       </div>
 
       <!-- 서포터 프리셋 -->
       <div id="tab-sup" class="tabpane" style="display:none">
         <div class="list" id="listSup"></div>
-        <div class="addline" style="display:grid;grid-template-columns:auto 1fr auto;gap:8px;margin-top:10px">
+        <div class="addline" style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px">
           <div class="avatar-up" style="display:flex;gap:8px;align-items:center">
             <img id="addSupPreview" alt="" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb">
             <input id="addSupPhoto" type="file" accept="image/*" />
+            <input id="addSupName" type="text" placeholder="서포터명" />
           </div>
-          <input id="addSupName" type="text" placeholder="서포터명" />
-          <button id="btnAddSup">추가</button>
+          <div class="controls"><button id="btnAddSup">추가</button></div>
         </div>
       </div>
 
@@ -697,7 +696,7 @@ const CONFIG={ timezone:'Asia/Seoul', weekBoard:{startOnMonday:true, showSunday:
       show:{brand:true,header:true,hero:true,place:true,address:true,map:true,desc:true,supporters:true,footer:true},
       options:{
         spaceScale:0.72,  fontScale:1.10,  fill:'both', infoLayout:'side', hideEmpty:true,
-        f:{ meeting:50, time:30, name:30, label:25, value:20, footer:20, /* ▼ 추가 */ desc:20, supcap:12, brand:14 },
+        f:{ meeting:50, time:30, name:30, label:25, value:20, footer:20, desc:20, supcap:12, brand:14 },
         sizes:{ avatar:150 },
         supportersSize:40,
         supportersPos:'right',
@@ -706,7 +705,6 @@ const CONFIG={ timezone:'Asia/Seoul', weekBoard:{startOnMonday:true, showSunday:
         headerShowTime:true,
         supportersOffsetX:0, supportersOffsetY:0,
         heroBg:'', heroFit:'cover', heroPosX:'50%', heroPosY:'50%',
-        /* 헤더 배경 위치조절 */
         headerBg:'', headerFit:'cover', headerPosX:'50%', headerPosY:'50%',
 
         heroTagText:'', heroTagSize:28, heroTagX:'50%', heroTagY:'50%', heroTagColor:'#ffffff',
@@ -869,7 +867,7 @@ function renderWeekBoard(){
 function updateRangeText(){const v=calendar.view; const s=new Date(v.currentStart); const e=new Date(v.currentEnd-1); $('#exportRange').textContent=`${fmt(s,{year:'numeric',month:'short',day:'numeric'})} – ${fmt(e,{year:'numeric',month:'short',day:'numeric'})}`;}
 async function exportBoardPNG(){const node=$('#calendarWrap'); const canvas=await html2canvas(node,{backgroundColor:'#fff',scale:2,useCORS:true}); const url=canvas.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download=`team-week-${new Date().toISOString().slice(0,10)}.png`; a.click();}
 
-/* ===== 카드 빌드 ===== */
+/* ===== 카드 빌드 ===== (이전과 동일) */
 function buildCardHTML(data, layout){
   const L=layout||PRESETS.cardLayout, opt=L.options||{}, dims=data.dims||getCardDims();
   const supAlign = (opt.align?.supporters||'right');
@@ -889,7 +887,6 @@ function buildCardHTML(data, layout){
     `--cw:${dims.w}`, `--ch:${dims.h}`, `--fs:${opt.fontScale??1}`, `--sp:${opt.spaceScale??1}`,
     `--f-meeting:${opt.f?.meeting??22}`, `--f-time:${opt.f?.time??13}`,
     `--f-name:${opt.f?.name??18}`, `--f-label:${opt.f?.label??12}`, `--f-value:${opt.f?.value??15}`, `--f-footer:${opt.f?.footer??12}`,
-    /* ▼ 추가된 글꼴 변수 바인딩 */
     `--f-desc:${opt.f?.desc ?? (opt.f?.value ?? 15)}`, `--f-supcap:${opt.f?.supcap ?? 12}`, `--f-brand:${opt.f?.brand ?? 14}`,
     `--av:${(opt.sizes?.avatar??96)}px`,
     `--mapfit:${opt.mapStyle==='cover'?'cover':'contain'}`,
@@ -965,13 +962,13 @@ function buildCardHTML(data, layout){
       content = `<div class="scv-full">${descBlock||mapBlock||''}</div>`;
     }
   }else{
-    const place=(L.show?.place && showIf(data.place) && (opt.infoLayout!=='side'))?`<div class="scv-section"><div class="scv-label">장소</div><div class="scv-value">${esc(data.place)}</div></div>`:'';
-    const addr =(L.show?.address && showIf(data.address) && (opt.infoLayout!=='side'))?`<div class="scv-section"><div class="scv-label">주소</div><div class="scv-value">${esc(data.address)}</div></div>`:'';
+    const place=(PRESETS.cardLayout.show?.place!==false && showIf(data.place) && (opt.infoLayout!=='side'))?`<div class="scv-section"><div class="scv-label">장소</div><div class="scv-value">${esc(data.place)}</div></div>`:'';
+    const addr =(PRESETS.cardLayout.show?.address!==false && showIf(data.address) && (opt.infoLayout!=='side'))?`<div class="scv-section"><div class="scv-label">주소</div><div class="scv-value">${esc(data.address)}</div></div>`:'';
     content = place + addr + (descBlock?descBlock:'') + (mapBlock?mapBlock:'');
   }
 
-  const footer=L.show?.footer?`<div class="sc-footer">${(opt.footer1||'').trim()?`<div class="l1">${esc(opt.footer1)}</div>`:''}${(opt.footer2||'').trim()?`<div class="l2">${esc(opt.footer2)}</div>`:''}</div>`:'';
-  const brand=()=>{ if(!L.show?.brand) return ''; const t=(opt.brandTitle||'').trim(); if(!t) return ''; return `<div class="sc-brand"><div class="logo"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2.39 6.9h7.26l-5.88 4.27L18.17 20 12 15.89 5.83 20l2.4-6.83L2.35 8.9h7.26L12 2z"/></svg><span>${esc(t)}</span></div><div class="wave"></div></div>`; };
+  const footer=PRESETS.cardLayout.show?.footer?`<div class="sc-footer">${(opt.footer1||'').trim()?`<div class="l1">${esc(opt.footer1)}</div>`:''}${(opt.footer2||'').trim()?`<div class="l2">${esc(opt.footer2)}</div>`:''}</div>`:'';
+  const brand=()=>{ if(!PRESETS.cardLayout.show?.brand) return ''; const t=(opt.brandTitle||'').trim(); if(!t) return ''; return `<div class="sc-brand"><div class="logo"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2.39 6.9h7.26l-5.88 4.27L18.17 20 12 15.89 5.83 20l2.4-6.83L2.35 8.9h7.26L12 2z"/></svg><span>${esc(t)}</span></div><div class="wave"></div></div>`; };
 
   const blocks={brand,header:()=>header,hero:()=>heroBlock,content:()=>content,footer:()=>footer};
   const inner=(L.order||[]).map(b=>blocks[b]?blocks[b](): '').join('');
@@ -1094,7 +1091,7 @@ function attachCardEditableInteractions(){
     }, {passive:true});
   }
 
-  /* 서포터 사진/이름 클릭 편집 & 미리보기 내 드래그 정렬 */
+  /* 서포터 사진/이름 편집 + 드래그 정렬 */
   const supContainer = root.querySelector('.scv-supbar, .scv-suprow');
   if(supContainer){
     const minis = supContainer.querySelectorAll('.sup-mini');
@@ -1267,6 +1264,13 @@ function attachCardEditableInteractions(){
     }
   }
 }
+function applySupEdit(arr){
+  if(!lastEventForCard) return;
+  lastEventForCard.setExtendedProp('supporters', arr);
+  const d=eventFromFcEvent(lastEventForCard); d.extendedProps.supporters=arr;
+  EventStore.upsert(d);
+  renderCurrentCardPreview();
+}
 
 /* ===== QuickAdd ===== */
 let qState={date:new Date(),locId:null,slotId:null,instrId:null,meetingId:null,routeImage:'',supporters:[],editingId:null};
@@ -1290,12 +1294,42 @@ function initQuickAdd(){
   });
 }
 function ensureQuickAddFit(x,y){
-  const qa=$('#quickAdd'), card=qa.querySelector('.quick-card'), isMobile=window.innerWidth<=640;
-  if(isMobile){ qa.style.display='flex'; qa.style.inset='0'; qa.style.left='0'; qa.style.top='auto'; card.style.width='100vw'; card.style.maxHeight='92vh'; card.style.borderRadius='16px 16px 0 0'; return;}
-  qa.style.display='block'; card.style.maxHeight=Math.min(window.innerHeight-16,760)+'px';
-  requestAnimationFrame(()=>{const cw=card.offsetWidth||520, ch=card.offsetHeight||520; let px=(x??(innerWidth/2))+8, py=(y??80)+8; px=Math.min(px,innerWidth-cw-8); py=Math.min(py,innerHeight-ch-8); qa.style.left=Math.max(8,px)+'px'; qa.style.top=Math.max(8,py)+'px';});
+  const qa = $('#quickAdd');
+  const card = qa.querySelector('.quick-card');
+  const isMobile = window.innerWidth <= 680;
+
+  if(isMobile){
+    // 하단 시트 형태로 표시
+    qa.classList.add('show');
+    qa.style.display = 'flex';
+    qa.style.left = '0';
+    qa.style.top = '0';
+    qa.style.right = '0';
+    qa.style.bottom = '0';
+    // CSS의 max-height(min(92vh,92dvh))에 맡김
+    card.style.width = 'min(720px, 100vw)';
+    card.style.maxHeight = '';             // JS로 강제값 부여하지 않음
+    card.style.borderRadius = '16px 16px 0 0';
+    return;
+  }
+
+  // 데스크톱: 클릭 지점 기준 플로팅
+  qa.classList.remove('show');
+  qa.style.display = 'block';
+  const pad = 12;
+  requestAnimationFrame(()=>{
+    const cw = card.offsetWidth || 520;
+    const ch = Math.min(card.offsetHeight || 600, Math.max(520, window.innerHeight - pad*2));
+    card.style.maxHeight = ch + 'px';
+    let px = (x ?? (innerWidth/2)) + 8;
+    let py = (y ?? 80) + 8;
+    px = Math.min(px, innerWidth - cw - pad);
+    py = Math.min(py, innerHeight - ch - pad);
+    qa.style.left = Math.max(pad, px) + 'px';
+    qa.style.top  = Math.max(pad, py) + 'px';
+  });
 }
-window.addEventListener('resize',()=>{const qa=$('#quickAdd'); if(qa && qa.style.display!=='none') ensureQuickAddFit();});
+window.addEventListener('resize',()=>{const qa=$('#quickAdd'); if(qa && qa.style.display!=='none'){ ensureQuickAddFit(); }});
 function openQuickAdd({date,clientX,clientY,editEvent=null}){
   if(SHARE_DATA) return;
   qState={date,locId:null,slotId:null,instrId:null,meetingId:null,routeImage:'',supporters:[],editingId:null};
@@ -1314,7 +1348,11 @@ function openQuickAdd({date,clientX,clientY,editEvent=null}){
   initMemoEnhance();
   ensureQuickAddFit(clientX,clientY);
 }
-function closeQuickAdd(){ $('#quickAdd').style.display='none'; }
+function closeQuickAdd(){
+  const qa=$('#quickAdd');
+  qa.style.display='none';
+  qa.classList.remove('show');  // 모바일 시트 모드 해제
+}
 function renderSupList(){
   const box=$('#qSupList'); box.innerHTML='';
   qState.supporters.forEach((s,i)=>{
@@ -1410,7 +1448,7 @@ function initPresetModal(){
 
   $('#btnOutSave').onclick=()=>{let size=$('#outCardSize').value; if(size==='custom'){ const w=Math.max(600,+$('#outW').value||1080), h=Math.max(600,+$('#outH').value||1350); size=`${w}x${h}`; } PRESETS.output={title:$('#outTitle').value.trim(), sub:$('#outSub').value.trim(), accent:$('#outAccent').value||'#4f46e5', cardSize:size}; PresetStore.save(PRESETS); toast('출력 설정 저장됨');};
 
-  $('#btnExport').onclick=()=>{ const data={presets:PRESETS,version:'v17.7'}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-settings.json'; a.click(); };
+  $('#btnExport').onclick=()=>{ const data={presets:PRESETS,version:'v17.8'}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-settings.json'; a.click(); };
   $('#btnImport').onclick=()=>$('#importFile').click();
   $('#importFile').onchange=async e=>{try{const f=e.target.files[0]; if(!f) return; const text=await f.text(); const d=JSON.parse(text||'{}.'); if(!d.presets) throw 0; PRESETS=d.presets; PresetStore.save(PRESETS); renderPresetLists(); renderPresetOptions(); renderLayoutDesigner(); initShareModal(); renderWeekBoard(); toast('설정을 불러왔습니다');}catch{toast('가져오기 실패: JSON을 확인하세요.');}};
   $('#btnReset').onclick=()=>{ if(confirm('모든 설정을 기본값으로 되돌릴까요? (일정은 유지)')){ PRESETS=structuredClone(CONFIG.defaultPresets); PresetStore.save(PRESETS); renderPresetLists(); renderPresetOptions(); renderLayoutDesigner(); initShareModal(); renderWeekBoard(); toast('초기화했습니다'); }};
@@ -1509,7 +1547,7 @@ async function makeCardPNG(){
   const canvas=await html2canvas(sc,{backgroundColor:'#fff',scale:2,useCORS:true}); const url=canvas.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download=`card-${$('#cDate').value||toDateInput(new Date())}.png`; a.click();
 }
 
-/* ===== 카드 퀵튜너 ===== */
+/* ===== 카드 퀵튜너 ===== (생략 없이 포함) */
 function buildCardTuner(){
   const wrap=$('#cardTuner'); const o=PRESETS.cardLayout.options||{}; const dlg=$('#cardModal .dialog');
   const fitK = getFitScale(); if(PreviewZoom.scale==null) PreviewZoom.scale=fitK;
@@ -1540,7 +1578,6 @@ function buildCardTuner(){
       <button data-preset="poster">포스터</button>
       <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#475569;margin-left:auto"><input type="checkbox" id="qtHideEmpty" ${o.hideEmpty!==false?'checked':''}/> 빈 섹션 숨김</label>
     </div>
-    <!-- 글씨 크기 1 -->
     <div class="grp g3">
       <label>모임(px)<input id="qtFMeeting" type="number" min="16" max="64" step="1" value="${o.f?.meeting??50}"></label>
       <label>시간(px)<input id="qtFTime" type="number" min="10" max="40" step="1" value="${o.f?.time??30}"></label>
@@ -1549,7 +1586,6 @@ function buildCardTuner(){
       <label>정보값(px)<input id="qtFValue" type="number" min="10" max="40" step="1" value="${o.f?.value??20}"></label>
       <label>푸터(px)<input id="qtFFooter" type="number" min="10" max="40" step="1" value="${o.f?.footer??20}"></label>
     </div>
-    <!-- 글씨 크기 2 (추가) -->
     <div class="grp g3">
       <label>상세내용(px)<input id="qtFDesc" type="number" min="10" max="40" step="1" value="${o.f?.desc ?? (o.f?.value ?? 20)}"></label>
       <label>서포터 캡션(px)<input id="qtFSupCap" type="number" min="8" max="28" step="1" value="${o.f?.supcap ?? 12}"></label>
@@ -1579,7 +1615,6 @@ function buildCardTuner(){
       <label>시간표시<select id="qtHeaderTime"><option value="on" ${o.headerShowTime!==false?'selected':''}>표시</option><option value="off" ${o.headerShowTime===false?'selected':''}>숨김</option></select></label>
     </div>
 
-    <!-- ▼ 헤더 배경 맞춤/위치 -->
     <div class="grp g3">
       <label>헤더 배경 맞춤
         <select id="qtHeadFit">
@@ -1749,9 +1784,9 @@ function setQT(part){const g=id=>$('#'+id);
     if(part.f.label)   g('qtFLabel').value=part.f.label;
     if(part.f.value)   g('qtFValue').value=part.f.value;
     if(part.f.footer)  g('qtFFooter').value=part.f.footer;
-    if(part.f.desc)    g('qtFDesc').value=part.f.desc;         /* ▼ 추가 */
-    if(part.f.supcap)  g('qtFSupCap').value=part.f.supcap;     /* ▼ 추가 */
-    if(part.f.brand)   g('qtFBrand').value=part.f.brand;       /* ▼ 추가 */
+    if(part.f.desc)    g('qtFDesc').value=part.f.desc;
+    if(part.f.supcap)  g('qtFSupCap').value=part.f.supcap;
+    if(part.f.brand)   g('qtFBrand').value=part.f.brand;
   }
   if(part.sizes?.avatar) g('qtAvatar').value=part.sizes.avatar;
   if(part.supportersSize!=null) g('qtSupSize').value=part.supportersSize;
@@ -1764,12 +1799,9 @@ function setQT(part){const g=id=>$('#'+id);
 function applyQuickTuner(save){
   const o=PRESETS.cardLayout.options;
   o.spaceScale=+$('#qtSpace').value; o.fontScale=+$('#qtFont').value; o.fill=$('#qtFill').value; o.infoLayout=$('#qtInfoLayout')?.value||o.infoLayout;
-  o.f={
-    meeting:+$('#qtFMeeting').value, time:+$('#qtFTime').value, name:+$('#qtFName').value,
+  o.f={ meeting:+$('#qtFMeeting').value, time:+$('#qtFTime').value, name:+$('#qtFName').value,
     label:+$('#qtFLabel').value, value:+$('#qtFValue').value, footer:+$('#qtFFooter').value,
-    /* ▼ 추가된 폰트 값 저장 */
-    desc:+$('#qtFDesc').value, supcap:+$('#qtFSupCap').value, brand:+$('#qtFBrand').value
-  };
+    desc:+$('#qtFDesc').value, supcap:+$('#qtFSupCap').value, brand:+$('#qtFBrand').value };
   o.sizes={avatar:+$('#qtAvatar').value};
   o.supportersSize=+$('#qtSupSize').value;
   o.mapStyle=$('#qtMapStyle').value; o.headerShowTime=$('#qtHeaderTime').value==='on';
@@ -1778,7 +1810,6 @@ function applyQuickTuner(save){
   o.supportersOffsetX=+$('#qtSupX').value; o.supportersOffsetY=+$('#qtSupY').value;
   o.hideEmpty=$('#qtHideEmpty').checked;
 
-  /* 헤더 배경 위치/맞춤 */
   o.headerFit = $('#qtHeadFit').value;
   o.headerPosX = $('#qtHeadPosX').value + '%';
   o.headerPosY = $('#qtHeadPosY').value + '%';
@@ -1816,7 +1847,7 @@ function applyQuickTuner(save){
 
 /* ===== 공유 링크 ===== */
 function createShareLink(){
-  const payload={v:17.7,title:$('#calendarTitle').value||'팀 캘린더',presets:{
+  const payload={v:17.8,title:$('#calendarTitle').value||'팀 캘린더',presets:{
       locations:PRESETS.locations.map(({id,label,color,address,map})=>({id,label,color,address,map})),
       instructors:PRESETS.instructors.map(({id,label,photo})=>({id,label,photo})),
       supporters:(PRESETS.supporters||[]).map(({id,label,photo})=>({id,label,photo})),
@@ -1877,7 +1908,7 @@ document.body.addEventListener('click',e=>{const c=e.target.getAttribute?.('data
 async function copy(text){try{await navigator.clipboard.writeText(text);}catch{const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();}}
 function toast(msg){const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1600);}
 
-/* ===== 초기 렌더 ===== */
+/* ===== 초기 ===== */
 </script>
 </body>
 </html>
