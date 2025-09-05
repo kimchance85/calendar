@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>팀 캘린더 · v17.9 (담당자 미리보기 이미지 고정)</title>
+<title>팀 캘린더 · v18.2 (저장 안정판)</title>
 
 <!-- FullCalendar / html2canvas -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.19/index.min.css" />
@@ -27,6 +27,12 @@ a{color:inherit;text-decoration:none}
 .hero{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;}
 .brand{font-weight:900;font-size:26px;background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent;}
 .badge{font-size:12px;color:#334155;background:#f1f5f9;border:1px solid #e2e8f0;padding:6px 10px;border-radius:999px;}
+
+/* ====== 읽기전용/저장 안내 배너 ====== */
+.banner{display:none;margin:-6px auto 10px;max-width:1200px;padding:10px 14px;border:1px solid #e5e7eb;border-left:6px solid #f59e0b;background:#fffbeb;border-radius:12px;box-shadow:var(--shadow-sm)}
+.banner b{color:#92400e}
+.banner .act{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.banner .act button{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:8px 12px;cursor:pointer}
 
 /* ====== 상단 툴바 ====== */
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow-md);}
@@ -361,7 +367,13 @@ button:hover,select:hover{border-color:#cbd5e1}
   <div class="wrap">
     <div class="hero">
       <div class="brand">팀 캘린더</div>
-      <div class="badge" id="modeBadge">로컬 모드</div>
+      <div class="badge" id="modeBadge">모드 확인중…</div>
+    </div>
+
+    <!-- 읽기전용·저장 이슈 안내 배너 -->
+    <div id="roBanner" class="banner">
+      <div id="roMsg"></div>
+      <div class="act" id="roAct"></div>
     </div>
 
     <div class="toolbar" id="toolbar">
@@ -417,7 +429,7 @@ button:hover,select:hover{border-color:#cbd5e1}
     </div>
   </div>
 
-  <!-- 빠른 일정 추가 (개선판) -->
+  <!-- 빠른 일정 추가 -->
   <div id="quickAdd">
     <form id="quickForm" class="quick-card">
       <div class="quick-head"><h4 id="qHeading">빠른 일정 추가</h4><button type="button" id="qClose" class="xbtn">✕</button></div>
@@ -595,14 +607,13 @@ button:hover,select:hover{border-color:#cbd5e1}
     </div>
   </div>
 
-  <!-- 사진 보기 (담당자 미리보기: 이미지 과대 방지) -->
+  <!-- 사진 보기 -->
   <div class="modal" id="photoModal">
     <div class="scrim" data-close="#photoModal"></div>
     <div class="dialog" style="max-width:520px">
       <button class="close-x" data-close="#photoModal">✕</button>
       <h3 id="pmName">담당자</h3>
       <div style="display:flex;align-items:center;justify-content:center;padding:10px">
-        <!-- ⬇ 수정: contain + width:100% + auto height -->
         <img id="pmImg" src="" alt="" style="max-width:100%;max-height:65dvh;height:auto;border-radius:12px;border:1px solid #e5e7eb;object-fit:contain"/>
       </div>
     </div>
@@ -669,6 +680,46 @@ button:hover,select:hover{border-color:#cbd5e1}
 const urlParams=new URLSearchParams(location.search);
 let SHARE_DATA=null; try{const s=urlParams.get('s'); if(s){const json=decodeURIComponent(escape(atob(s))); SHARE_DATA=JSON.parse(json);}}catch(e){}
 
+/* ===== 저장소 가용성 체크 & 배너 ===== */
+function storageWritable(){
+  try{ const k='__tc_test__'+Date.now(); localStorage.setItem(k,'1'); localStorage.removeItem(k); return true; }
+  catch(e){ return false; }
+}
+const STORAGE_OK = storageWritable();
+const MemoryStore = { presets:null, events:[] };
+
+function showModeBanner(){
+  const badge=$('#modeBadge'), banner=$('#roBanner'), msg=$('#roMsg'), act=$('#roAct');
+  act.innerHTML='';
+  if(SHARE_DATA){
+    badge.textContent='뷰어 모드(읽기전용)';
+    banner.style.display='block';
+    msg.innerHTML = `<b>공유 링크(뷰어)</b>로 열려 편집/저장이 비활성화되어 있습니다.`;
+    const btn=document.createElement('button');
+    btn.textContent='편집 모드로 열기(현재 내용 복사)';
+    btn.onclick=()=>{
+      try{
+        localStorage.setItem(PresetStore.KEY, JSON.stringify(SHARE_DATA.presets||CONFIG.defaultPresets));
+        localStorage.setItem(EventStore.KEY, JSON.stringify(SHARE_DATA.events||[]));
+        window.open(location.href.split('?')[0],'_blank');
+      }catch(e){
+        alert('브라우저가 저장을 막고 있어 자동 전환에 실패했습니다.\n주소창의 ?s=… 파라미터를 제거하고 다시 열어주세요.');
+      }
+    };
+    act.appendChild(btn);
+  }else if(!STORAGE_OK){
+    badge.textContent='임시 모드(저장 제한)';
+    banner.style.display='block';
+    msg.innerHTML=`브라우저가 <b>로컬 저장소(localStorage)</b> 사용을 제한하고 있어 디스크 저장이 불가합니다. 작업 내용은 <b>임시 메모리</b>에 보관되며, 페이지를 닫으면 사라질 수 있습니다. <br>해결: 사파리 사생활 보호 해제/일반 브라우저로 열기/인앱 브라우저 대신 시스템 브라우저 사용.`;
+    const b1=document.createElement('button'); b1.textContent='설정 내보내기(백업)'; b1.onclick=exportSettings;
+    const b2=document.createElement('button'); b2.textContent='설정 가져오기'; b2.onclick=()=>$('#importFile').click();
+    act.append(b1,b2);
+  }else{
+    badge.textContent='로컬 모드';
+    banner.style.display='none';
+  }
+}
+
 /* ===== 기본 프리셋 ===== */
 const CONFIG={ timezone:'Asia/Seoul', weekBoard:{startOnMonday:true, showSunday:false},
   defaultPresets:{
@@ -712,6 +763,7 @@ const CONFIG={ timezone:'Asia/Seoul', weekBoard:{startOnMonday:true, showSunday:
         mapStyle:'cover',
         headerShowTime:true,
         supportersOffsetX:0, supportersOffsetY:0,
+        heroOffsetX:0, heroOffsetY:0,
         heroBg:'', heroFit:'cover', heroPosX:'50%', heroPosY:'50%',
         headerBg:'', headerFit:'cover', headerPosX:'50%', headerPosY:'50%',
 
@@ -720,18 +772,33 @@ const CONFIG={ timezone:'Asia/Seoul', weekBoard:{startOnMonday:true, showSunday:
         footer1:'Awaken the Movement🌊',
         footer2:'tmThis is ZiNRAi🔥',
         infoAnchor:'right', infoWidthPct:56, infoOffsetX:0, infoOffsetY:0, infoValign:'start', heroGap:14,
-        heroOffsetX:0, heroOffsetY:0,
         splitRatio:56
       }
     }
   }
 };
+
+/* ===== PresetStore / EventStore (저장 안정판) ===== */
 const PresetStore=(()=>{const KEY='team-calendar-presets-v17-zinrai';
-  const load=()=>SHARE_DATA?.presets?SHARE_DATA.presets:Object.assign(structuredClone(CONFIG.defaultPresets), JSON.parse(localStorage.getItem(KEY)||'{}'));
-  const save=p=>{if(!SHARE_DATA)localStorage.setItem(KEY,JSON.stringify(p));};
+  const load=()=>SHARE_DATA?.presets?SHARE_DATA.presets:(STORAGE_OK?Object.assign(structuredClone(CONFIG.defaultPresets), JSON.parse(localStorage.getItem(KEY)||'{}')):(MemoryStore.presets||(MemoryStore.presets=structuredClone(CONFIG.defaultPresets))));
+  const save=p=>{ if(SHARE_DATA) return; try{ if(STORAGE_OK) localStorage.setItem(KEY,JSON.stringify(p)); else MemoryStore.presets=JSON.parse(JSON.stringify(p)); }catch(e){console.error(e); toast('설정 저장 실패: 브라우저 저장공간을 확인하세요.');} };
   return {load,save,KEY};
 })();
 let PRESETS=PresetStore.load();
+
+const EventStore=(()=>{const KEY='team-calendar-events-v3';
+  const read=()=>SHARE_DATA?.events?SHARE_DATA.events:(STORAGE_OK?JSON.parse(localStorage.getItem(KEY)||'[]'):(MemoryStore.events||[]));
+  const write=rows=>{ if(SHARE_DATA) return; try{ if(STORAGE_OK) localStorage.setItem(KEY,JSON.stringify(rows)); else MemoryStore.events=JSON.parse(JSON.stringify(rows)); }catch(e){console.error(e); toast('일정 저장 실패: 저장공간/권한을 확인하세요.'); throw e;} };
+  function list(){return read().map(r=>({id:r.id,title:r.title,start:r.start,end:r.end,allDay:!!r.allDay,backgroundColor:r.color,borderColor:r.color,textColor:textColorFor(r.color),
+    extendedProps:{location:r.location||'',instructor:r.instructor||'',locId:r.locId||'',slotId:r.slotId||'',instrId:r.instrId||'',meetingId:r.meetingId||'',meetingName:r.meetingName||'',address:r.address||'',map:r.map||'',
+      routeImage:r.routeImage||'', supporters:r.supporters||[], heroPhoto:r.heroPhoto||'', desc:r.desc||'', color:r.color}}));}
+  async function upsert(ev){ if(SHARE_DATA){ toast('뷰어 모드에서는 저장할 수 없습니다.'); return ev; }
+    const rows=read(); const id=ev.id||crypto.randomUUID?.()||Date.now().toString(36); const ep=ev.extendedProps||{};
+    const row={id,title:ev.title,start:ev.start,end:ev.end,allDay:!!ev.allDay,location:ep.location||'',instructor:ep.instructor||'',locId:ep.locId||'',slotId:ep.slotId||'',instrId:ep.instrId||'',meetingId:ep.meetingId||'',meetingName:ep.meetingName||'',address:ep.address||'',map:ep.map||'',routeImage:ep.routeImage||'', supporters:ep.supporters||[], heroPhoto:ep.heroPhoto||'', desc:ep.desc||'', color:ep.color||ev.backgroundColor||'#4f46e5'};
+    const i=rows.findIndex(r=>r.id===id); if(i>=0) rows[i]=row; else rows.push(row); write(rows); return {...ev,id};}
+  async function remove(id){ if(SHARE_DATA) return; write(read().filter(r=>r.id!==id)); }
+  return {list,upsert,remove,KEY};
+})();
 
 /* ===== Utils ===== */
 const $=(q,r=document)=>r.querySelector(q), $$=(q,r=document)=>[...r.querySelectorAll(q)];
@@ -750,26 +817,11 @@ function getCardDims(){return sizeStrToDims(PRESETS.output?.cardSize||'1080x1350
 function pctToNum(p){if(typeof p==='string' && p.endsWith('%')) return +p.replace('%',''); if(typeof p==='number') return p; return 50;}
 function clamp(v,min,max){return Math.max(min, Math.min(max, v));}
 
-/* ===== Event Store ===== */
-const EventStore=(()=>{const KEY='team-calendar-events-v3';
-  const read=()=>SHARE_DATA?.events?SHARE_DATA.events:JSON.parse(localStorage.getItem(KEY)||'[]');
-  const write=rows=>{if(!SHARE_DATA)localStorage.setItem(KEY,JSON.stringify(rows));};
-  function list(){return read().map(r=>({id:r.id,title:r.title,start:r.start,end:r.end,allDay:!!r.allDay,backgroundColor:r.color,borderColor:r.color,textColor:textColorFor(r.color),
-    extendedProps:{location:r.location||'',instructor:r.instructor||'',locId:r.locId||'',slotId:r.slotId||'',instrId:r.instrId||'',meetingId:r.meetingId||'',meetingName:r.meetingName||'',address:r.address||'',map:r.map||'',
-      routeImage:r.routeImage||'', supporters:r.supporters||[], heroPhoto:r.heroPhoto||'', desc:r.desc||'', color:r.color}}));}
-  async function upsert(ev){if(SHARE_DATA) return ev; const rows=read(); const id=ev.id||uuid(); const ep=ev.extendedProps||{};
-    const row={id,title:ev.title,start:ev.start,end:ev.end,allDay:!!ev.allDay,location:ep.location||'',instructor:ep.instructor||'',locId:ep.locId||'',slotId:ep.slotId||'',instrId:ep.instrId||'',meetingId:ep.meetingId||'',meetingName:ep.meetingName||'',address:ep.address||'',map:ep.map||'',
-      routeImage:ep.routeImage||'', supporters:ep.supporters||[], heroPhoto:ep.heroPhoto||'', desc:ep.desc||'', color:ep.color||ev.backgroundColor||'#4f46e5'};
-    const i=rows.findIndex(r=>r.id===id); if(i>=0) rows[i]=row; else rows.push(row); write(rows); return {...ev,id};}
-  async function remove(id){if(!SHARE_DATA){write(read().filter(r=>r.id!==id));}}
-  return {list,upsert,remove};
-})();
-
 /* ===== Calendar ===== */
 let calendar,currentViewId='weekShare',anchorDate=new Date(),lastEventForCard=null;
 
 document.addEventListener('DOMContentLoaded',async()=>{
-  $('#modeBadge').textContent=SHARE_DATA?'뷰어 모드(읽기전용)':'로컬 모드';
+  showModeBanner();
   $('#viewSelect').value='weekShare';
   if(SHARE_DATA?.title) $('#calendarTitle').value=SHARE_DATA.title;
   $('#exportTitle').textContent=$('#calendarTitle').value;
@@ -778,10 +830,10 @@ document.addEventListener('DOMContentLoaded',async()=>{
     locale:'ko',timeZone:CONFIG.timezone,initialView:'dayGridMonth',height:'auto',
     selectable:!SHARE_DATA,editable:!SHARE_DATA,dayMaxEventRows:true,headerToolbar:false,events:await EventStore.list(),
     eventContent:renderCalendarEvent,eventDidMount:bindCalendarEventLinks,
-    dateClick:(info)=>{if(SHARE_DATA) return; openQuickAdd({date:info.date,clientX:info.jsEvent?.clientX,clientY:info.jsEvent?.clientY});},
+    dateClick:(info)=>{if(SHARE_DATA) {toast('뷰어 모드에서는 추가할 수 없어요'); return;} openQuickAdd({date:info.date,clientX:info.jsEvent?.clientX,clientY:info.jsEvent?.clientY});},
     eventClick:(info)=>{ if(info.jsEvent?.target?.closest?.('[data-link]')) return; openEventCard(info.event);},
-    eventDrop:async info=>{await EventStore.upsert(eventFromFcEvent(info.event)); if(isWeekShare()) renderWeekBoard();},
-    eventResize:async info=>{await EventStore.upsert(eventFromFcEvent(info.event)); if(isWeekShare()) renderWeekBoard();},
+    eventDrop:async info=>{try{await EventStore.upsert(eventFromFcEvent(info.event)); if(isWeekShare()) renderWeekBoard(); toast('이동 저장됨');}catch{}},
+    eventResize:async info=>{try{await EventStore.upsert(eventFromFcEvent(info.event)); if(isWeekShare()) renderWeekBoard(); toast('시간 저장됨');}catch{}},
     datesSet:()=>{if(!isWeekShare()) updateRangeText();}
   });
   calendar.render(); updateRangeText(); setView('weekShare');
@@ -1297,8 +1349,10 @@ function initQuickAdd(){
     const color=loc.color||PRESETS.output?.accent||'#4f46e5'; const title=`${loc.label} / ${ins.label}`; const id=qState.editingId||uuid();
     const eventData={id,title,start:startISO,end:endISO,allDay,backgroundColor:color,borderColor:color,textColor:textColorFor(color),
       extendedProps:{location:loc.label,instructor:ins.label,locId:loc.id,slotId:slot.id,instrId:ins.id,meetingId:meet?.id||'',meetingName:meet?.label||'',address:loc.address||'',map:loc.map||'',routeImage:qState.routeImage||'',supporters:qState.supporters.map(s=>({name:s.name||'',photo:s.photo||''})),desc:($('#qMemo').value||''),color}};
-    await EventStore.upsert(eventData); const exist=calendar.getEventById(id); if(exist) exist.remove(); calendar.addEvent(eventData);
-    closeQuickAdd(); toast(qState.editingId?'수정했습니다':'추가되었습니다'); if(isWeekShare()) renderWeekBoard();
+    try{
+      await EventStore.upsert(eventData); const exist=calendar.getEventById(id); if(exist) exist.remove(); calendar.addEvent(eventData);
+      closeQuickAdd(); toast(qState.editingId?'수정했습니다':'추가되었습니다'); if(isWeekShare()) renderWeekBoard();
+    }catch{ /* 저장 실패 토스트는 EventStore에서 이미 안내 */ }
   });
 }
 function ensureQuickAddFit(x,y){
@@ -1307,7 +1361,6 @@ function ensureQuickAddFit(x,y){
   const isMobile = window.innerWidth <= 680;
 
   if(isMobile){
-    // 하단 시트 형태로 표시
     qa.classList.add('show');
     qa.style.display = 'flex';
     qa.style.left = '0';
@@ -1320,7 +1373,6 @@ function ensureQuickAddFit(x,y){
     return;
   }
 
-  // 데스크톱: 클릭 지점 기준 플로팅
   qa.classList.remove('show');
   qa.style.display = 'block';
   const pad = 12;
@@ -1358,7 +1410,7 @@ function openQuickAdd({date,clientX,clientY,editEvent=null}){
 function closeQuickAdd(){
   const qa=$('#quickAdd');
   qa.style.display='none';
-  qa.classList.remove('show');  // 모바일 시트 모드 해제
+  qa.classList.remove('show');
 }
 function renderSupList(){
   const box=$('#qSupList'); box.innerHTML='';
@@ -1443,7 +1495,7 @@ function initPresetModal(){
   $$('#presetModal .tab').forEach(t=>{t.onclick=()=>{$$('#presetModal .tab').forEach(x=>x.classList.remove('active')); t.classList.add('active'); ['loc','time','ins','sup','meet','layout','out'].forEach(k=>$('#tab-'+k).style.display=(t.dataset.tab===k)?'block':'none');};});
   $('#outCardSize').onchange=()=>{const v=$('#outCardSize').value; $('#outWHrow').style.display=(v==='custom'?'grid':'none');};
 
-  $('#btnAddLoc').onclick=()=>{const name=$('#addLocName').value.trim(); if(!name) return; PRESETS.locations.push({id:'loc-'+uuid().slice(0,6),label:name,address:$('#addLocAddr').value.trim(),map:$('#addLocMap').value.trim(),color:$('#addLocColor').value||'#4f46e5'}); $('#addLocName').value='';$('#addLocAddr').value='';$('#addLocMap').value=''; PresetStore.save(PRESETS); renderPresetOptions(); renderWeekBoard();};
+  $('#btnAddLoc').onclick=()=>{const name=$('#addLocName').value.trim(); if(!name) return; PRESETS.locations.push({id:'loc-'+uuid().slice(0,6),label:name,address:$ ('#addLocAddr').value.trim(),map:$('#addLocMap').value.trim(),color:$('#addLocColor').value||'#4f46e5'}); $('#addLocName').value='';$('#addLocAddr').value='';$('#addLocMap').value=''; PresetStore.save(PRESETS); renderPresetOptions(); renderWeekBoard();};
   $('#btnAddTime').onclick=()=>{const all=$('#addTimeAllDay').checked,s=$('#addTimeStart').value,e=$('#addTimeEnd').value; let label=$('#addTimeLabel').value.trim(); if(!all&&(!s||!e)) return; if(!label) label=all?'종일':`${s}–${e}`; PRESETS.timeslots.push({id:'ts-'+uuid().slice(0,6),label,allDay:!!all,start:all?undefined:s,end:all?undefined:e}); $('#addTimeLabel').value=''; PresetStore.save(PRESETS); renderPresetLists(); renderPresetOptions();};
   $('#addInsPhoto').onchange=e=>readImageTo('#addInsPreview',e.target.files[0]);
   $('#btnAddIns').onclick=()=>{const name=$('#addInsName').value.trim(); if(!name) return; const photo=$('#addInsPreview').src||''; PRESETS.instructors.push({id:'ins-'+uuid().slice(0,6),label:name,photo}); $('#addInsName').value=''; $('#addInsPreview').removeAttribute('src'); $('#addInsPhoto').value=''; PresetStore.save(PRESETS); renderPresetOptions(); renderWeekBoard();};
@@ -1455,9 +1507,9 @@ function initPresetModal(){
 
   $('#btnOutSave').onclick=()=>{let size=$('#outCardSize').value; if(size==='custom'){ const w=Math.max(600,+$('#outW').value||1080), h=Math.max(600,+$('#outH').value||1350); size=`${w}x${h}`; } PRESETS.output={title:$('#outTitle').value.trim(), sub:$('#outSub').value.trim(), accent:$('#outAccent').value||'#4f46e5', cardSize:size}; PresetStore.save(PRESETS); toast('출력 설정 저장됨');};
 
-  $('#btnExport').onclick=()=>{ const data={presets:PRESETS,version:'v17.9'}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-settings.json'; a.click(); };
+  $('#btnExport').onclick=()=>{ const data={presets:PRESETS,version:'v18.2'}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-settings.json'; a.click(); };
   $('#btnImport').onclick=()=>$('#importFile').click();
-  $('#importFile').onchange=async e=>{try{const f=e.target.files[0]; if(!f) return; const text=await f.text(); const d=JSON.parse(text||'{}.'); if(!d.presets) throw 0; PRESETS=d.presets; PresetStore.save(PRESETS); renderPresetLists(); renderPresetOptions(); renderLayoutDesigner(); initShareModal(); renderWeekBoard(); toast('설정을 불러왔습니다');}catch{toast('가져오기 실패: JSON을 확인하세요.');}};
+  $('#importFile').onchange=async e=>{try{const f=e.target.files[0]; if(!f) return; const text=await f.text(); const d=JSON.parse(text||'{}.'); if(!d.presets && !d.events) throw 0; if(d.presets) PRESETS=d.presets; PresetStore.save(PRESETS); if(d.events){ if(STORAGE_OK) localStorage.setItem(EventStore.KEY, JSON.stringify(d.events)); else MemoryStore.events=d.events; } renderPresetLists(); renderPresetOptions(); renderLayoutDesigner(); initShareModal(); renderWeekBoard(); toast('설정을 불러왔습니다');}catch{toast('가져오기 실패: JSON을 확인하세요.');}};
   $('#btnReset').onclick=()=>{ if(confirm('모든 설정을 기본값으로 되돌릴까요? (일정은 유지)')){ PRESETS=structuredClone(CONFIG.defaultPresets); PresetStore.save(PRESETS); renderPresetLists(); renderPresetOptions(); renderLayoutDesigner(); initShareModal(); renderWeekBoard(); toast('초기화했습니다'); }};
 
   $('#btnLayoutSave2').onclick=()=>{ PRESETS.cardLayout.options.spaceScale=+($('#optSpace').value||.8); PRESETS.cardLayout.options.fontScale=+($('#optFont').value||1); PRESETS.cardLayout.options.fill=$('#optFill').value; PRESETS.cardLayout.options.infoLayout=$('#optInfoLayout').value; PresetStore.save(PRESETS); toast('레이아웃 옵션 저장됨'); };
@@ -1755,7 +1807,7 @@ function buildCardTuner(){
       const p=b.dataset.preset;
       if(p==='compact'){ setQT({spaceScale:.72,fontScale:1.1,fill:'both',infoLayout:'side',hideEmpty:true, f:{meeting:38,time:16,name:18,label:12,value:15,footer:12,desc:15,supcap:12,brand:14}, sizes:{avatar:96}, supportersSize:36, supporters:'right', supportersPos:'right', supportersOffsetX:0, supportersOffsetY:0, splitRatio:56}); }
       if(p==='readable'){ setQT({spaceScale:.85,fontScale:1.05,fill:'both',infoLayout:'side',hideEmpty:true, f:{meeting:42,time:18,name:20,label:13,value:16,footer:12,desc:16,supcap:12,brand:14}, sizes:{avatar:110}, supportersSize:40, supporters:'center', supportersPos:'below', supportersOffsetX:0, supportersOffsetY:0, splitRatio:56}); }
-      if(p==='poster'){ setQT({spaceScale:.9,fontScale:1.12,fill:'both',infoLayout:'side',hideEmpty:false, f:{meeting:50,time:24,name:26,label:14,value:18,footer:12,desc:18,supcap:13,brand:16}, sizes:{avatar:140}, supportersSize:48, supporters:'left', supportersPos:'above', supportersOffsetX:0, supportersOffsetY:0, splitRatio:60}); }
+      if(p==='poster'){ setQT({spaceScale:.9,fontScale:1.12,fill:'both',infoLayout:'side',hideEmpty:false, f:{meeting:50,time:24,name:26,label:14,value:18,footer:12,desc:18,supcap:13,brand:16}, sizes:{avatar:140}, supportersSize:48, supportersPos:'above', supportersOffsetX:0, supportersOffsetY:0, splitRatio:60}); }
       applyQuickTuner(false);
     };
   });
@@ -1854,7 +1906,7 @@ function applyQuickTuner(save){
 
 /* ===== 공유 링크 ===== */
 function createShareLink(){
-  const payload={v:17.9,title:$('#calendarTitle').value||'팀 캘린더',presets:{
+  const payload={v:18.2,title:$('#calendarTitle').value||'팀 캘린더',presets:{
       locations:PRESETS.locations.map(({id,label,color,address,map})=>({id,label,color,address,map})),
       instructors:PRESETS.instructors.map(({id,label,photo})=>({id,label,photo})),
       supporters:(PRESETS.supporters||[]).map(({id,label,photo})=>({id,label,photo})),
@@ -1915,7 +1967,12 @@ document.body.addEventListener('click',e=>{const c=e.target.getAttribute?.('data
 async function copy(text){try{await navigator.clipboard.writeText(text);}catch{const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();}}
 function toast(msg){const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1600);}
 
-/* ===== 초기 ===== */
+/* ===== 설정 백업(배너 버튼용) ===== */
+function exportSettings(){
+  const data={presets:PRESETS, events:EventStore.list().map(e=>({id:e.id,title:e.title,start:e.start,end:e.end,allDay:e.allDay,location:e.extendedProps.location,instructor:e.extendedProps.instructor,locId:e.extendedProps.locId,slotId:e.extendedProps.slotId,instrId:e.extendedProps.instrId,meetingId:e.extendedProps.meetingId,meetingName:e.extendedProps.meetingName,address:e.extendedProps.address,map:e.extendedProps.map,routeImage:e.extendedProps.routeImage,heroPhoto:e.extendedProps.heroPhoto,supporters:e.extendedProps.supporters,desc:e.extendedProps.desc,color:e.extendedProps.color}))};
+  const blob=new Blob([JSON.stringify({version:'v18.2',...data},null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-backup.json'; a.click();
+}
 </script>
 </body>
 </html>
