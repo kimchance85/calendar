@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>팀 캘린더 · v18.2 (저장 안정판)</title>
+<title>팀 캘린더 · v18.3 (히어로/서포터 손쉬운 사진 사이즈 조절)</title>
 
 <!-- FullCalendar / html2canvas -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.19/index.min.css" />
@@ -103,7 +103,7 @@ button:hover,select:hover{border-color:#cbd5e1}
   max-height: min(92vh, 92dvh);
   overflow:auto;
 }
-/* ⬇ 담당자 선택 미리보기(옵션) 이미지 과대 노출 방지 */
+/* ⬇ 담당자 선택 미리보기 이미지 과대 노출 방지 */
 #quickAdd .options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 #quickAdd .options .opt{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px}
 #quickAdd .options .opt.selected{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.12) inset}
@@ -141,7 +141,7 @@ button:hover,select:hover{border-color:#cbd5e1}
 .sup-addbtn{border:1px dashed #e5e7eb;background:#f8fafc;border-radius:10px;padding:8px}
 #qSupPresets .opt img{width:20px;height:20px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb}
 
-/* ====== 공통 모달 (개선: sticky 하단바) ====== */
+/* ====== 공통 모달 ====== */
 .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:16px;z-index:1800;}
 .modal.show{display:flex;}
 .scrim{position:absolute;inset:0;background:rgba(15,23,42,.35);backdrop-filter:blur(3px);}
@@ -173,7 +173,6 @@ button:hover,select:hover{border-color:#cbd5e1}
   --fs:1;      --sp:.75;
   --f-meeting:24; --f-time:13; --f-name:18; --f-label:12; --f-value:15; --f-footer:12;
   --f-desc:15; --f-supcap:12; --f-brand:14;
-
   --av:100px;
   --supx:0px; --supy:0px;
   --herox:0px; --heroy:0px;
@@ -361,6 +360,20 @@ button:hover,select:hover{border-color:#cbd5e1}
 #shareCanvas{position:fixed;left:-99999px;top:-99999px;background:#fff;padding:0;margin:0}
 .mini{font-size:12px;color:#64748b}
 .close-x{position:absolute;right:10px;top:10px;border:1px solid #e5e7eb;background:#fff;border-radius:8px;padding:6px 8px;cursor:pointer}
+
+/* ===== 새로 추가: 사진 사이즈 직접 조절 핸들 ===== */
+.img-resize-wrap{position:relative;display:inline-block;line-height:0}
+.img-resize-handle{
+  position:absolute;right:-6px;bottom:-6px;width:18px;height:18px;border-radius:50%;
+  background:#fff;border:1px solid #cbd5e1;box-shadow:0 2px 6px rgba(15,23,42,.15);
+  display:grid;place-items:center;cursor:nwse-resize;opacity:0;transition:opacity .12s ease;
+}
+.img-resize-wrap:hover .img-resize-handle,
+.img-resize-wrap.resizing .img-resize-handle{opacity:1}
+.img-resize-handle::after{
+  content:'';width:10px;height:10px;border-right:2px solid #64748b;border-bottom:2px solid #64748b;transform:translateY(-1px) rotate(45deg);
+}
+.img-resize-wrap.resizing img{outline:3px solid rgba(99,102,241,.35);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -404,7 +417,12 @@ button:hover,select:hover{border-color:#cbd5e1}
       <div id="weekBoard" class="week-board"><div class="week-grid" id="weekGrid"></div></div>
     </div>
 
-    <p class="hint">카드 미리보기: <b>담당자 사진</b> 클릭=사진변경, <b>담당자 이름</b> 클릭=이름변경 · <b>서포터</b> 사진/이름 클릭=편집, <b>서포터 칩 드래그</b>=순서변경 · 상세/약도 사이 <b>점선 바</b> 드래그=비율조정</p>
+    <p class="hint">
+      카드 미리보기:<br/>
+      • <b>담당자 사진</b> 클릭=사진변경, <b>이름</b> 클릭=이름변경<br/>
+      • <b>사진 모서리 둥근 핸들</b>을 <b>손가락/마우스로 드래그</b>하면 <b>크기 직접 조절</b> (조절 시작 시 자동 확대)<br/>
+      • <b>서포터 칩 드래그</b>=순서변경 · 상세/약도 사이 <b>점선 바</b> 드래그=비율조정
+    </p>
   </div>
 
   <!-- 카드 모달 -->
@@ -967,7 +985,13 @@ function buildCardHTML(data, layout){
 
   const avatar=data.photo?`<img class="scv-avatar" src="${data.photo}" alt="">`:`<div class="scv-avatar initials">${esc((data.initials||'담당').slice(0,2))}</div>`;
 
-  const supHtml=(data.supporters||[]).map((s,i)=>`<div class="sup-mini" data-sup-index="${i}">${s.photo?`<img src="${s.photo}" alt="${esc(s.name||'')}">`:`<div style="width:var(--sup);height:var(--sup);border-radius:50%;background:#e5e7eb"></div>`}<div class="cap">${esc(s.name||'')}</div></div>`).join('');
+  /* per-서포터 개별 사이즈 지원: s.size(px) 있으면 그대로 적용 */
+  const supHtml=(data.supporters||[]).map((s,i)=>{
+    const sizeStyle = s.size ? `style="width:${s.size}px;height:${s.size}px"` : '';
+    const img = s.photo ? `<img ${sizeStyle} src="${s.photo}" alt="${esc(s.name||'')}">`
+                        : `<div ${sizeStyle} style="width:${s.size||'calc(var(--sup) - 8px)'};height:${s.size||'calc(var(--sup) - 8px)'};border-radius:50%;background:#e5e7eb"></div>`;
+    return `<div class="sup-mini" data-sup-index="${i}">${img}<div class="cap">${esc(s.name||'')}</div></div>`
+  }).join('');
 
   function showIf(val){return opt.hideEmpty?!!String(val||'').trim():true}
 
@@ -1105,13 +1129,14 @@ async function copyEventCardToClipboard(){ if(!lastEventForCard) return;
   catch{toast('복사 불가한 환경입니다. PNG 저장을 이용하세요.');}
 }
 
-/* ===== 미리보기 편집(이름/사진 & 드래그) + 서포터 정렬 ===== */
+/* ===== 새로 추가: 사진 사이즈 직접 조절 ===== */
 function attachCardEditableInteractions(){
   const root = document.querySelector('#evCard .share-card.vertical.v5');
   const preview = document.querySelector('#evCard .card-preview');
   if(!root || !preview) return;
   const scaleK = parseFloat(preview.style.getPropertyValue('--k')) || getFitScale();
 
+  /* 사진 선택/이름 변경 (기존) */
   const pickImage = ()=>new Promise(resolve=>{
     const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
     inp.onchange=()=>{const f=inp.files?.[0]; if(!f){resolve('');return;}
@@ -1123,6 +1148,8 @@ function attachCardEditableInteractions(){
   const heroNameEl = root.querySelector('.scv-main .scv-name');
   if(heroAvatar){
     heroAvatar.addEventListener('click', async (e)=>{
+      /* 사진 바꾸기 */
+      if(e.target.closest('.img-resize-handle')) return;
       e.stopPropagation();
       if(!lastEventForCard || SHARE_DATA) return;
       const url = await pickImage(); if(!url) return;
@@ -1133,6 +1160,17 @@ function attachCardEditableInteractions(){
       if(isWeekShare()) renderWeekBoard();
       toast('담당자 사진을 변경했습니다');
     }, {passive:true});
+
+    /* 히어로 사진 사이즈 핸들 */
+    installResizeHandle(heroAvatar, {
+      scaleK,
+      min:72, max:240,
+      get:()=> (PRESETS.cardLayout.options?.sizes?.avatar || 150),
+      previewApply:(el, sz)=>{ el.style.width=sz+'px'; el.style.height=sz+'px'; },
+      apply:(sz)=>{ (PRESETS.cardLayout.options.sizes=PRESETS.cardLayout.options.sizes||{}).avatar = Math.round(sz); },
+      commit:()=>{ PresetStore.save(PRESETS); renderCurrentCardPreview(); toast('담당자 사진 크기를 저장했습니다'); },
+      onStartZoom:()=>{ ensureEditZoom(); }
+    });
   }
   if(heroNameEl){
     heroNameEl.addEventListener('click', async (e)=>{
@@ -1151,41 +1189,77 @@ function attachCardEditableInteractions(){
     }, {passive:true});
   }
 
-  /* 서포터 사진/이름 편집 + 드래그 정렬 */
+  /* 서포터 사진/이름 편집 & 사이즈 조절 */
   const supContainer = root.querySelector('.scv-supbar, .scv-suprow');
   if(supContainer){
     const minis = supContainer.querySelectorAll('.sup-mini');
     minis.forEach((m,i)=>{
-      m.addEventListener('click', async (e)=>{
+      const img=m.querySelector('img, div[style*="border-radius:50%"]');
+      const cap=m.querySelector('.cap');
+
+      // 이름 클릭 -> 변경
+      cap?.addEventListener('click', async (e)=>{
+        e.stopPropagation();
         if(!lastEventForCard || SHARE_DATA) return;
-        const targetIsName = !!e.target.closest('.cap');
-        if(targetIsName){
-          const arr=(lastEventForCard.extendedProps.supporters||[]).slice();
-          const cur=arr[i]?.name||'';
-          const v=prompt('서포터 이름을 입력하세요', cur);
-          if(v==null) return;
-          arr[i]={...(arr[i]||{}), name:v.trim()};
-          lastEventForCard.setExtendedProp('supporters', arr);
-          const d=eventFromFcEvent(lastEventForCard); d.extendedProps.supporters=arr;
-          await EventStore.upsert(d);
-          renderCurrentCardPreview(); toast('서포터 이름을 변경했습니다');
-        }else{
-          const url = await pickImage(); if(!url) return;
-          const arr=(lastEventForCard.extendedProps.supporters||[]).slice();
-          if(!arr[i]) return;
-          arr[i] = {...arr[i], photo:url};
-          lastEventForCard.setExtendedProp('supporters', arr);
-          const d=eventFromFcEvent(lastEventForCard); d.extendedProps.supporters=arr;
-          await EventStore.upsert(d);
-          renderCurrentCardPreview(); toast('서포터 사진을 변경했습니다');
-        }
+        const arr=(lastEventForCard.extendedProps.supporters||[]).slice();
+        const cur=arr[i]?.name||'';
+        const v=prompt('서포터 이름을 입력하세요', cur);
+        if(v==null) return;
+        arr[i]={...(arr[i]||{}), name:v.trim()};
+        lastEventForCard.setExtendedProp('supporters', arr);
+        const d=eventFromFcEvent(lastEventForCard); d.extendedProps.supporters=arr;
+        await EventStore.upsert(d);
+        renderCurrentCardPreview(); toast('서포터 이름을 변경했습니다');
       }, {passive:true});
+
+      // 사진 클릭 -> 바꾸기
+      img?.addEventListener('click', async (e)=>{
+        if(e.target.closest('.img-resize-handle')) return;
+        e.stopPropagation();
+        if(!lastEventForCard || SHARE_DATA) return;
+        const url = await pickImage(); if(!url) return;
+        const arr=(lastEventForCard.extendedProps.supporters||[]).slice();
+        arr[i] = {...(arr[i]||{}), photo:url};
+        lastEventForCard.setExtendedProp('supporters', arr);
+        const d=eventFromFcEvent(lastEventForCard); d.extendedProps.supporters=arr;
+        await EventStore.upsert(d);
+        renderCurrentCardPreview(); toast('서포터 사진을 변경했습니다');
+      }, {passive:true});
+
+      // 사이즈 조절 핸들
+      if(img){
+        installResizeHandle(img, {
+          scaleK,
+          min:24, max:160,
+          get:()=>{
+            const s=(lastEventForCard.extendedProps.supporters||[])[i]?.size;
+            if(s) return s;
+            // 현재 표시 크기(스케일 보정)
+            const w = img.getBoundingClientRect().width / (PreviewZoom.scale || getFitScale());
+            return Math.round(w);
+          },
+          previewApply:(el, sz)=>{ el.style.width=sz+'px'; el.style.height=sz+'px'; },
+          apply:(sz)=>{
+            const arr=(lastEventForCard.extendedProps.supporters||[]).slice();
+            arr[i] = {...(arr[i]||{}), size:Math.round(sz)};
+            lastEventForCard.setExtendedProp('supporters', arr);
+            // 저장은 commit에서
+          },
+          commit:async()=>{
+            const d=eventFromFcEvent(lastEventForCard);
+            await EventStore.upsert(d);
+            renderCurrentCardPreview();
+            toast('서포터 사진 크기를 저장했습니다');
+          },
+          onStartZoom:()=>{ ensureEditZoom(); }
+        });
+      }
     });
 
     enableInlineSupporterReorder(supContainer);
 
     makeDragAdjust(supContainer, 'sup', (dx,dy,evt)=>{
-      if(evt?.target?.closest?.('.sup-mini')) return;
+      if(evt?.target?.closest?.('.sup-mini, .img-resize-handle')) return;
       const o=PRESETS.cardLayout.options;
       o.supportersOffsetX = Math.round((o.supportersOffsetX||0) + dx/scaleK);
       o.supportersOffsetY = Math.round((o.supportersOffsetY||0) + dy/scaleK);
@@ -1196,7 +1270,8 @@ function attachCardEditableInteractions(){
 
   const heroBlock = root.querySelector('.scv-main');
   if(heroBlock){
-    makeDragAdjust(heroBlock, 'hero', (dx,dy)=>{
+    makeDragAdjust(heroBlock, 'hero', (dx,dy,e)=>{
+      if(e?.target?.closest?.('.img-resize-handle')) return;
       const o=PRESETS.cardLayout.options;
       o.heroOffsetX = Math.round((o.heroOffsetX||0) + dx/scaleK);
       o.heroOffsetY = Math.round((o.heroOffsetY||0) + dy/scaleK);
@@ -1235,11 +1310,20 @@ function attachCardEditableInteractions(){
     }
   }
 
+  function ensureEditZoom(){
+    const target = Math.max(getFitScale()*1.18, 0.9);
+    if((PreviewZoom.scale||getFitScale()) < target){
+      PreviewZoom.scale = clamp(target, PreviewZoom.min, PreviewZoom.max);
+      PreviewZoom.manual = true;
+      applyPreviewScale();
+    }
+  }
+
   function makeDragAdjust(el, kind, onDelta){
     let sx=0, sy=0, dragging=false;
     const onDown=(e)=>{
       if(e.button!==undefined && e.button!==0) return;
-      if(e.target?.closest?.('.sup-mini')) return;
+      if(e.target?.closest?.('.sup-mini, .img-resize-handle')) return;
       dragging=true; sx=(e.clientX|| (e.touches?.[0]?.clientX||0)); sy=(e.clientY|| (e.touches?.[0]?.clientY||0));
       el.classList.add('dragging');
       window.addEventListener('mousemove', onMove, {passive:false});
@@ -1323,13 +1407,61 @@ function attachCardEditableInteractions(){
       return before ? nearest : nearest.nextSibling;
     }
   }
-}
-function applySupEdit(arr){
-  if(!lastEventForCard) return;
-  lastEventForCard.setExtendedProp('supporters', arr);
-  const d=eventFromFcEvent(lastEventForCard); d.extendedProps.supporters=arr;
-  EventStore.upsert(d);
-  renderCurrentCardPreview();
+
+  function applySupEdit(arr){
+    if(!lastEventForCard) return;
+    lastEventForCard.setExtendedProp('supporters', arr);
+    const d=eventFromFcEvent(lastEventForCard); d.extendedProps.supporters=arr;
+    EventStore.upsert(d);
+    renderCurrentCardPreview();
+  }
+
+  /* 공용: 특정 이미지에 리사이즈 핸들 추가 */
+  function installResizeHandle(img, opts){
+    if(!img || img.closest('.img-resize-wrap')) return;
+    const wrap=document.createElement('span');
+    wrap.className='img-resize-wrap';
+    img.parentNode.insertBefore(wrap, img);
+    wrap.appendChild(img);
+    const h=document.createElement('span'); h.className='img-resize-handle'; wrap.appendChild(h);
+
+    const start=(e)=>{
+      if(SHARE_DATA) return;
+      e.preventDefault(); e.stopPropagation();
+      wrap.classList.add('resizing');
+      opts.onStartZoom && opts.onStartZoom();
+
+      const k = opts.scaleK || (PreviewZoom.scale || getFitScale());
+      const startX=(e.touches?.[0]?.clientX ?? e.clientX);
+      const startY=(e.touches?.[0]?.clientY ?? e.clientY);
+      let startSize = typeof opts.get==='function' ? +opts.get() : (img.getBoundingClientRect().width / k);
+      if(!isFinite(startSize) || startSize<=0){ startSize = img.getBoundingClientRect().width / k; }
+
+      const move=(ev)=>{
+        const cx=(ev.touches?.[0]?.clientX ?? ev.clientX);
+        const cy=(ev.touches?.[0]?.clientY ?? ev.clientY);
+        const d=((cx-startX)+(cy-startY))/2;
+        let sz = startSize + d / (PreviewZoom.scale || getFitScale());
+        sz = clamp(sz, opts.min||24, opts.max||240);
+        if(typeof opts.previewApply==='function') opts.previewApply(img, sz);
+        if(typeof opts.apply==='function') opts.apply(sz);
+      };
+      const up=async ()=>{
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        document.removeEventListener('touchmove', move);
+        document.removeEventListener('touchend', up);
+        wrap.classList.remove('resizing');
+        if(typeof opts.commit==='function') await opts.commit();
+      };
+      document.addEventListener('mousemove', move, {passive:false});
+      document.addEventListener('mouseup', up, {passive:true});
+      document.addEventListener('touchmove', move, {passive:false});
+      document.addEventListener('touchend', up, {passive:true});
+    };
+    h.addEventListener('mousedown', start);
+    h.addEventListener('touchstart', start, {passive:false});
+  }
 }
 
 /* ===== QuickAdd ===== */
@@ -1507,7 +1639,7 @@ function initPresetModal(){
 
   $('#btnOutSave').onclick=()=>{let size=$('#outCardSize').value; if(size==='custom'){ const w=Math.max(600,+$('#outW').value||1080), h=Math.max(600,+$('#outH').value||1350); size=`${w}x${h}`; } PRESETS.output={title:$('#outTitle').value.trim(), sub:$('#outSub').value.trim(), accent:$('#outAccent').value||'#4f46e5', cardSize:size}; PresetStore.save(PRESETS); toast('출력 설정 저장됨');};
 
-  $('#btnExport').onclick=()=>{ const data={presets:PRESETS,version:'v18.2'}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-settings.json'; a.click(); };
+  $('#btnExport').onclick=()=>{ const data={presets:PRESETS,version:'v18.3'}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-settings.json'; a.click(); };
   $('#btnImport').onclick=()=>$('#importFile').click();
   $('#importFile').onchange=async e=>{try{const f=e.target.files[0]; if(!f) return; const text=await f.text(); const d=JSON.parse(text||'{}.'); if(!d.presets && !d.events) throw 0; if(d.presets) PRESETS=d.presets; PresetStore.save(PRESETS); if(d.events){ if(STORAGE_OK) localStorage.setItem(EventStore.KEY, JSON.stringify(d.events)); else MemoryStore.events=d.events; } renderPresetLists(); renderPresetOptions(); renderLayoutDesigner(); initShareModal(); renderWeekBoard(); toast('설정을 불러왔습니다');}catch{toast('가져오기 실패: JSON을 확인하세요.');}};
   $('#btnReset').onclick=()=>{ if(confirm('모든 설정을 기본값으로 되돌릴까요? (일정은 유지)')){ PRESETS=structuredClone(CONFIG.defaultPresets); PresetStore.save(PRESETS); renderPresetLists(); renderPresetOptions(); renderLayoutDesigner(); initShareModal(); renderWeekBoard(); toast('초기화했습니다'); }};
@@ -1642,7 +1774,7 @@ function buildCardTuner(){
       <label>시간(px)<input id="qtFTime" type="number" min="10" max="40" step="1" value="${o.f?.time??30}"></label>
       <label>담당(px)<input id="qtFName" type="number" min="10" max="40" step="1" value="${o.f?.name??30}"></label>
       <label>라벨(px)<input id="qtFLabel" type="number" min="10" max="40" step="1" value="${o.f?.label??25}"></label>
-      <label>정보값(px)<input id="qtFValue" type="number" min="10" max="40" step="1" value="${o.f?.value??20}"></label>
+      <label>정보값(px)<input id="qtFValue" type="number" min="10" max="40" step="1" value="${o.f?.value??15}"></label>
       <label>푸터(px)<input id="qtFFooter" type="number" min="10" max="40" step="1" value="${o.f?.footer??20}"></label>
     </div>
     <div class="grp g3">
@@ -1776,7 +1908,7 @@ function buildCardTuner(){
         <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" id="qShowPlace" ${PRESETS.cardLayout.show.place!==false?'checked':''}/> 장소</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" id="qShowAddr"  ${PRESETS.cardLayout.show.address!==false?'checked':''}/> 주소</label>
       </div>
-      <div class="row" style="grid-template-columns:1fr 1fr;gap:8px">
+      <div class="row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" id="qShowMap"   ${PRESETS.cardLayout.show.map!==false?'checked':''}/> 약도</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" id="qShowDesc"  ${PRESETS.cardLayout.show.desc!==false?'checked':''}/> 상세내용</label>
       </div>
@@ -1906,7 +2038,7 @@ function applyQuickTuner(save){
 
 /* ===== 공유 링크 ===== */
 function createShareLink(){
-  const payload={v:18.2,title:$('#calendarTitle').value||'팀 캘린더',presets:{
+  const payload={v:18.3,title:$('#calendarTitle').value||'팀 캘린더',presets:{
       locations:PRESETS.locations.map(({id,label,color,address,map})=>({id,label,color,address,map})),
       instructors:PRESETS.instructors.map(({id,label,photo})=>({id,label,photo})),
       supporters:(PRESETS.supporters||[]).map(({id,label,photo})=>({id,label,photo})),
@@ -1914,7 +2046,7 @@ function createShareLink(){
       meetings:PRESETS.meetings.map(m=>({id:m.id,label:m.label,desc:m.desc||''})),
       output:PRESETS.output||{}, cardLayout:PRESETS.cardLayout
     },
-    events:calendar.getEvents().map(ev=>({id:ev.id,title:ev.title,start:ev.start,end:ev.end,allDay:!!ev.allDay,color:ev.extendedProps?.color||ev.backgroundColor||'#4f46e5',location:ev.extendedProps?.location||'',instructor:ev.extendedProps?.instructor||'',locId:ev.extendedProps?.locId||'',slotId:ev.extendedProps?.slotId||'',instrId:ev.extendedProps?.instrId||'',meetingId:ev.extendedProps?.meetingId||'',meetingName:ev.extendedProps?.meetingName||'',address:ev.extendedProps?.address||'',map:ev.extendedProps?.map||'',routeImage:ev.extendedProps?.routeImage||'',heroPhoto:ev.extendedProps?.heroPhoto||'',supporters:(ev.extendedProps?.supporters||[]).map(s=>({name:s.name||'',photo:s.photo||''})),desc:ev.extendedProps?.desc||''}))};
+    events:calendar.getEvents().map(ev=>({id:ev.id,title:ev.title,start:ev.start,end:ev.end,allDay:!!ev.allDay,color:ev.extendedProps?.color||ev.backgroundColor||'#4f46e5',location:ev.extendedProps?.location||'',instructor:ev.extendedProps?.instructor||'',locId:ev.extendedProps?.locId||'',slotId:ev.extendedProps?.slotId||'',instrId:ev.extendedProps?.instrId||'',meetingId:ev.extendedProps?.meetingId||'',meetingName:ev.extendedProps?.meetingName||'',address:ev.extendedProps?.address||'',map:ev.extendedProps?.map||'',routeImage:ev.extendedProps?.routeImage||'',heroPhoto:ev.extendedProps?.heroPhoto||'',supporters:(ev.extendedProps?.supporters||[]).map(s=>({name:s.name||'',photo:s.photo||'',size:s.size||undefined})),desc:ev.extendedProps?.desc||''}))};
   const json=JSON.stringify(payload); const base64=btoa(unescape(encodeURIComponent(json))); const baseUrl=location.href.split('?')[0]; return baseUrl+'?s='+base64;
 }
 
@@ -1970,7 +2102,7 @@ function toast(msg){const t=$('#toast'); t.textContent=msg; t.classList.add('sho
 /* ===== 설정 백업(배너 버튼용) ===== */
 function exportSettings(){
   const data={presets:PRESETS, events:EventStore.list().map(e=>({id:e.id,title:e.title,start:e.start,end:e.end,allDay:e.allDay,location:e.extendedProps.location,instructor:e.extendedProps.instructor,locId:e.extendedProps.locId,slotId:e.extendedProps.slotId,instrId:e.extendedProps.instrId,meetingId:e.extendedProps.meetingId,meetingName:e.extendedProps.meetingName,address:e.extendedProps.address,map:e.extendedProps.map,routeImage:e.extendedProps.routeImage,heroPhoto:e.extendedProps.heroPhoto,supporters:e.extendedProps.supporters,desc:e.extendedProps.desc,color:e.extendedProps.color}))};
-  const blob=new Blob([JSON.stringify({version:'v18.2',...data},null,2)],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({version:'v18.3',...data},null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-backup.json'; a.click();
 }
 </script>
