@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>팀 캘린더 · v18.4 (레이아웃 탭 아바타 크기 슬라이더 + 손쉬운 사진 사이즈 조절)</title>
+<title>팀 캘린더 · v18.6 (빠른일정 저장 안정화 · 아바타 크기 프리셋)</title>
 
 <!-- FullCalendar / html2canvas -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.19/index.min.css" />
@@ -811,15 +811,64 @@ let PRESETS=PresetStore.load();
 
 const EventStore=(()=>{const KEY='team-calendar-events-v3';
   const read=()=>SHARE_DATA?.events?SHARE_DATA.events:(STORAGE_OK?JSON.parse(localStorage.getItem(KEY)||'[]'):(MemoryStore.events||[]));
-  const write=rows=>{ if(SHARE_DATA) return; try{ if(STORAGE_OK) localStorage.setItem(KEY,JSON.stringify(rows)); else MemoryStore.events=JSON.parse(JSON.stringify(rows)); }catch(e){console.error(e); toast('일정 저장 실패: 저장공간/권한을 확인하세요.'); throw e;} };
-  function list(){return read().map(r=>({id:r.id,title:r.title,start:r.start,end:r.end,allDay:!!r.allDay,backgroundColor:r.color,borderColor:r.color,textColor:textColorFor(r.color),
-    extendedProps:{location:r.location||'',instructor:r.instructor||'',locId:r.locId||'',slotId:r.slotId||'',instrId:r.instrId||'',meetingId:r.meetingId||'',meetingName:r.meetingName||'',address:r.address||'',map:r.map||'',
-      routeImage:r.routeImage||'', supporters:r.supporters||[], heroPhoto:r.heroPhoto||'', desc:r.desc||'', color:r.color}}));}
-  async function upsert(ev){ if(SHARE_DATA){ toast('뷰어 모드에서는 저장할 수 없습니다.'); return ev; }
-    const rows=read(); const id=ev.id||crypto.randomUUID?.()||Date.now().toString(36); const ep=ev.extendedProps||{};
-    const row={id,title:ev.title,start:ev.start,end:ev.end,allDay:!!ev.allDay,location:ep.location||'',instructor:ep.instructor||'',locId:ep.locId||'',slotId:ep.slotId||'',instrId:ep.instrId||'',meetingId:ep.meetingId||'',meetingName:ep.meetingName||'',address:ep.address||'',map:ep.map||'',routeImage:ep.routeImage||'', supporters:ep.supporters||[], heroPhoto:ep.heroPhoto||'', desc:ep.desc||'', color:ep.color||ev.backgroundColor||'#4f46e5'};
-    const i=rows.findIndex(r=>r.id===id); if(i>=0) rows[i]=row; else rows.push(row); write(rows); return {...ev,id};}
-  async function remove(id){ if(SHARE_DATA) return; write(read().filter(r=>r.id!==id)); }
+
+  // ✅ 실패해도 throw하지 않고 메모리로 fallback
+  const write=(rows)=>{
+    if(SHARE_DATA) return true;
+    try{
+      if(STORAGE_OK){ localStorage.setItem(KEY, JSON.stringify(rows)); }
+      else{ MemoryStore.events = JSON.parse(JSON.stringify(rows)); }
+      return true;
+    }catch(e){
+      console.error(e);
+      MemoryStore.events = JSON.parse(JSON.stringify(rows));
+      toast('디스크 저장이 제한되어 <임시 저장>으로 전환했습니다.');
+      return false;
+    }
+  };
+
+  function list(){
+    return read().map(r=>({
+      id:r.id, title:r.title, start:r.start, end:r.end, allDay:!!r.allDay,
+      backgroundColor:r.color, borderColor:r.color, textColor:textColorFor(r.color),
+      extendedProps:{
+        location:r.location||'', instructor:r.instructor||'',
+        locId:r.locId||'', slotId:r.slotId||'', instrId:r.instrId||'',
+        meetingId:r.meetingId||'', meetingName:r.meetingName||'',
+        address:r.address||'', map:r.map||'',
+        routeImage:r.routeImage||'', supporters:r.supporters||[],
+        heroPhoto:r.heroPhoto||'', desc:r.desc||'', color:r.color
+      }
+    }));
+  }
+
+  async function upsert(ev){
+    if(SHARE_DATA){ toast('뷰어 모드에서는 저장할 수 없습니다.'); return {ok:false, ev}; }
+    const rows = read();
+    const ep   = ev.extendedProps || {};
+    const id   = ev.id || uuid();
+    const row  = {
+      id, title:ev.title, start:ev.start, end:ev.end, allDay:!!ev.allDay,
+      location:ep.location||'', instructor:ep.instructor||'',
+      locId:ep.locId||'', slotId:ep.slotId||'', instrId:ep.instrId||'',
+      meetingId:ep.meetingId||'', meetingName:ep.meetingName||'',
+      address:ep.address||'', map:ep.map||'',
+      routeImage:ep.routeImage||'', supporters:ep.supporters||[],
+      heroPhoto:ep.heroPhoto||'', desc:ep.desc||'',
+      color:ep.color||ev.backgroundColor||'#4f46e5'
+    };
+    const i = rows.findIndex(r=>r.id===id);
+    if(i>=0) rows[i]=row; else rows.push(row);
+    const ok = write(rows);
+    return {ok, ev:{...ev, id}};
+  }
+
+  async function remove(id){
+    if(SHARE_DATA) return false;
+    const rows = read().filter(r=>r.id!==id);
+    return write(rows);
+  }
+
   return {list,upsert,remove,KEY};
 })();
 
@@ -827,7 +876,14 @@ const EventStore=(()=>{const KEY='team-calendar-events-v3';
 const $=(q,r=document)=>r.querySelector(q), $$=(q,r=document)=>[...r.querySelectorAll(q)];
 const fmt=(d,opt)=>new Date(d).toLocaleString('ko-KR',{...opt,hour12:false,timeZone:CONFIG.timezone});
 const toDateInput=d=>{const z=new Date(d); z.setMinutes(z.getMinutes()-z.getTimezoneOffset()); return z.toISOString().slice(0,10);};
-const uuid=()=>crypto?.randomUUID?.()||([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
+// --- Safe UUID (crypto 없이도 동작) ---
+function uuid(){
+  try{
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  }catch(e){}
+  const rnd = n => Array.from({length:n}, () => Math.floor(Math.random()*16).toString(16)).join('');
+  return `${rnd(8)}-${rnd(4)}-4${rnd(3)}-${(8+Math.floor(Math.random()*4)).toString(16)}${rnd(3)}-${rnd(12)}`;
+}
 function textColorFor(bg){if(!bg)return'#111';const h=bg.replace('#','');const r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16);const yiq=(r*299+g*587+b*114)/1000;return yiq>=160?'#111':'#fff';}
 function esc(s){return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 function startOfWeek(date){const d=new Date(date);const day=d.getDay();const diff=(day===0?-6:1-day);d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d;}
@@ -971,7 +1027,6 @@ function buildCardHTML(data, layout){
     `--f-meeting:${opt.f?.meeting??22}`, `--f-time:${opt.f?.time??13}`,
     `--f-name:${opt.f?.name??18}`, `--f-label:${opt.f?.label??12}`, `--f-value:${opt.f?.value??15}`, `--f-footer:${opt.f?.footer??12}`,
     `--f-desc:${opt.f?.desc ?? (opt.f?.value ?? 15)}`, `--f-supcap:${opt.f?.supcap ?? 12}`, `--f-brand:${opt.f?.brand ?? 14}`,
-    /* ★ 기본값을 150으로 일치 */
     `--av:${(opt.sizes?.avatar ?? 150)}px`,
     `--mapfit:${opt.mapStyle==='cover'?'cover':'contain'}`,
     `--supx:${(opt.supportersOffsetX||0)}px`,
@@ -991,7 +1046,6 @@ function buildCardHTML(data, layout){
 
   const avatar=data.photo?`<img class="scv-avatar" src="${data.photo}" alt="">`:`<div class="scv-avatar initials">${esc((data.initials||'담당').slice(0,2))}</div>`;
 
-  /* per-서포터 개별 사이즈 지원 */
   const supHtml=(data.supporters||[]).map((s,i)=>{
     const sz = s.size ? `style="width:${s.size}px;height:${s.size}px"` : '';
     const img = s.photo ? `<img ${sz} src="${s.photo}" alt="${esc(s.name||'')}">`
@@ -1474,19 +1528,62 @@ function initQuickAdd(){
   $('#qCancel').onclick=closeQuickAdd; $('#qClose').onclick=closeQuickAdd;
   $('#qRouteFile').onchange=e=>readImageFileToDataUrl(e.target.files[0]).then(url=>{qState.routeImage=url||''; $('#qRoutePreview').src=qState.routeImage||'';});
   $('#qSupAdd').onclick=()=>{qState.supporters.push({id:uuid(),name:'',photo:''}); renderSupList();};
-  $('#quickForm').addEventListener('submit',async e=>{
-    e.preventDefault(); if(!(qState.locId&&qState.slotId&&qState.instrId&&qState.meetingId)) return;
-    const loc=PRESETS.locations.find(x=>x.id===qState.locId), slot=PRESETS.timeslots.find(x=>x.id===qState.slotId), ins=PRESETS.instructors.find(x=>x.id===qState.instrId), meet=PRESETS.meetings.find(x=>x.id===qState.meetingId);
-    let startISO,endISO,allDay=false; const d=new Date(qState.date);
-    if(slot.allDay){allDay=true; const s=new Date(d); s.setHours(0,0,0,0); const e2=new Date(d); e2.setHours(23,59,59,999); startISO=s.toISOString(); endISO=e2.toISOString();}
-    else{const [sh,sm]=slot.start.split(':'),[eh,em]=slot.end.split(':'), s=new Date(d), e=new Date(d); s.setHours(+sh,+sm,0,0); e.setHours(+eh,+em,0,0); startISO=s.toISOString(); endISO=e.toISOString();}
-    const color=loc.color||PRESETS.output?.accent||'#4f46e5'; const title=`${loc.label} / ${ins.label}`; const id=qState.editingId||uuid();
-    const eventData={id,title,start:startISO,end:endISO,allDay,backgroundColor:color,borderColor:color,textColor:textColorFor(color),
-      extendedProps:{location:loc.label,instructor:ins.label,locId:loc.id,slotId:slot.id,instrId:ins.id,meetingId:meet?.id||'',meetingName:meet?.label||'',address:loc.address||'',map:loc.map||'',routeImage:qState.routeImage||'',supporters:qState.supporters.map(s=>({name:s.name||'',photo:s.photo||''})),desc:($('#qMemo').value||''),color}};
-    try{
-      await EventStore.upsert(eventData); const exist=calendar.getEventById(id); if(exist) exist.remove(); calendar.addEvent(eventData);
-      closeQuickAdd(); toast(qState.editingId?'수정했습니다':'추가되었습니다'); if(isWeekShare()) renderWeekBoard();
-    }catch{ /* 저장 실패 토스트는 EventStore에서 이미 안내 */ }
+
+  // ✅ 저장 핸들러: 저장 실패해도 UI에는 반영 + 안내토스트
+  document.getElementById('quickForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    if(!(qState.locId && qState.slotId && qState.instrId && qState.meetingId)) return;
+
+    const loc = PRESETS.locations.find(x=>x.id===qState.locId);
+    const slot= PRESETS.timeslots.find(x=>x.id===qState.slotId);
+    const ins = PRESETS.instructors.find(x=>x.id===qState.instrId);
+    const meet= PRESETS.meetings.find(x=>x.id===qState.meetingId);
+
+    // 시간 계산
+    let startISO, endISO, allDay=false;
+    const d=new Date(qState.date);
+    if(slot.allDay){
+      allDay=true;
+      const s=new Date(d); s.setHours(0,0,0,0);
+      const e2=new Date(d); e2.setHours(23,59,59,999);
+      startISO=s.toISOString(); endISO=e2.toISOString();
+    }else{
+      const [sh,sm]=slot.start.split(':'), [eh,em]=slot.end.split(':');
+      const s=new Date(d), e=new Date(d);
+      s.setHours(+sh,+sm,0,0); e.setHours(+eh,+em,0,0);
+      startISO=s.toISOString(); endISO=e.toISOString();
+    }
+
+    const color = loc.color || PRESETS.output?.accent || '#4f46e5';
+    const id    = qState.editingId || uuid();
+    const title = `${loc.label} / ${ins.label}`;
+
+    const eventData = {
+      id, title, start:startISO, end:endISO, allDay,
+      backgroundColor:color, borderColor:color, textColor:textColorFor(color),
+      extendedProps:{
+        location:loc.label, instructor:ins.label,
+        locId:loc.id, slotId:slot.id, instrId:ins.id,
+        meetingId:meet?.id||'', meetingName:meet?.label||'',
+        address:loc.address||'', map:loc.map||'',
+        routeImage:qState.routeImage||'',
+        supporters:qState.supporters.map(s=>({name:s.name||'', photo:s.photo||''})),
+        desc: (document.getElementById('qMemo').value||''),
+        color
+      }
+    };
+
+    // 저장 시도
+    const {ok} = await EventStore.upsert(eventData);
+
+    // 캘린더 반영(성공/실패와 무관하게 UI에는 추가)
+    const exist = calendar.getEventById(id);
+    if(exist) exist.remove();
+    calendar.addEvent(eventData);
+
+    closeQuickAdd();
+    toast(qState.editingId ? '수정했습니다' : (ok ? '추가되었습니다' : '임시로 추가되었습니다(저장 제한)'));
+    if(isWeekShare()) renderWeekBoard();
   });
 }
 function ensureQuickAddFit(x,y){
@@ -1641,7 +1738,7 @@ function initPresetModal(){
 
   $('#btnOutSave').onclick=()=>{let size=$('#outCardSize').value; if(size==='custom'){ const w=Math.max(600,+$('#outW').value||1080), h=Math.max(600,+$('#outH').value||1350); size=`${w}x${h}`; } PRESETS.output={title:$('#outTitle').value.trim(), sub:$('#outSub').value.trim(), accent:$('#outAccent').value||'#4f46e5', cardSize:size}; PresetStore.save(PRESETS); toast('출력 설정 저장됨');};
 
-  $('#btnExport').onclick=()=>{ const data={presets:PRESETS,version:'v18.4'}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-settings.json'; a.click(); };
+  $('#btnExport').onclick=()=>{ const data={presets:PRESETS,version:'v18.6'}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-settings.json'; a.click(); };
   $('#btnImport').onclick=()=>$('#importFile').click();
   $('#importFile').onchange=async e=>{try{const f=e.target.files[0]; if(!f) return; const text=await f.text(); const d=JSON.parse(text||'{}.'); if(!d.presets && !d.events) throw 0; if(d.presets) PRESETS=d.presets; PresetStore.save(PRESETS); if(d.events){ if(STORAGE_OK) localStorage.setItem(EventStore.KEY, JSON.stringify(d.events)); else MemoryStore.events=d.events; } renderPresetLists(); renderPresetOptions(); renderLayoutDesigner(); initShareModal(); renderWeekBoard(); toast('설정을 불러왔습니다');}catch{toast('가져오기 실패: JSON을 확인하세요.');}};
   $('#btnReset').onclick=()=>{ if(confirm('모든 설정을 기본값으로 되돌릴까요? (일정은 유지)')){ PRESETS=structuredClone(CONFIG.defaultPresets); PresetStore.save(PRESETS); renderPresetLists(); renderPresetOptions(); renderLayoutDesigner(); initShareModal(); renderWeekBoard(); toast('초기화했습니다'); }};
@@ -2029,8 +2126,8 @@ function applyQuickTuner(save){
   o.infoAnchor  = $('#qtInfoAnchor').value;
   o.infoWidthPct = +($('#qtInfoWidth').value||o.infoWidthPct||56);
   o.heroGap     = +$('#qtHeroGap').value;
-  o.infoOffsetX = +$('#qtInfoX').value;
-  o.infoOffsetY = +$('#qtInfoY').value;
+  o.infoOffsetX = +($('#qtInfoX').value||0);
+  o.infoOffsetY = +($('#qtInfoY').value||0);
   o.infoValign  = $('#qtInfoValign').value;
 
   o.heroFit=$('#qtHeroFit').value;
@@ -2059,7 +2156,7 @@ function applyQuickTuner(save){
 
 /* ===== 공유 링크 ===== */
 function createShareLink(){
-  const payload={v:18.4,title:$('#calendarTitle').value||'팀 캘린더',presets:{
+  const payload={v:18.6,title:$('#calendarTitle').value||'팀 캘린더',presets:{
       locations:PRESETS.locations.map(({id,label,color,address,map})=>({id,label,color,address,map})),
       instructors:PRESETS.instructors.map(({id,label,photo})=>({id,label,photo})),
       supporters:(PRESETS.supporters||[]).map(({id,label,photo})=>({id,label,photo})),
@@ -2123,7 +2220,7 @@ function toast(msg){const t=$('#toast'); t.textContent=msg; t.classList.add('sho
 /* ===== 설정 백업(배너 버튼용) ===== */
 function exportSettings(){
   const data={presets:PRESETS, events:EventStore.list().map(e=>({id:e.id,title:e.title,start:e.start,end:e.end,allDay:e.allDay,location:e.extendedProps.location,instructor:e.extendedProps.instructor,locId:e.extendedProps.locId,slotId:e.extendedProps.slotId,instrId:e.extendedProps.instrId,meetingId:e.extendedProps.meetingId,meetingName:e.extendedProps.meetingName,address:e.extendedProps.address,map:e.extendedProps.map,routeImage:e.extendedProps.routeImage,heroPhoto:e.extendedProps.heroPhoto,supporters:e.extendedProps.supporters,desc:e.extendedProps.desc,color:e.extendedProps.color}))};
-  const blob=new Blob([JSON.stringify({version:'v18.4',...data},null,2)],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({version:'v18.6',...data},null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-backup.json'; a.click();
 }
 </script>
