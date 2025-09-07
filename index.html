@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>팀 캘린더 · v18.6 (빠른일정 저장 안정화 · 아바타 크기 프리셋)</title>
+<title>팀 캘린더 · v18.7 (빠른설정 기본값 & 약도 크기 고정)</title>
 
 <!-- FullCalendar / html2canvas -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.19/index.min.css" />
@@ -109,10 +109,10 @@ button:hover,select:hover{border-color:#cbd5e1}
 #quickAdd .options .opt.selected{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.12) inset}
 #quickAdd .options .opt img.avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;border:1px solid #e5e7eb}
 #quickAdd .options .opt img{max-width:100%;height:auto}
-/* (기존) 하단 버튼 고정 */
+/* 확대/저장 영역 고정 */
 #quickAdd .quick-actions{
   position:sticky; bottom:0;
-  display:flex; gap:8px; justify-content:flex-end;
+  display:flex; gap:8px; flex-wrap:wrap; align-items:center;
   padding:10px 0 calc(10px + env(safe-area-inset-bottom));
   background:linear-gradient(180deg, rgba(255,255,255,0), #fff 40%);
   border-top:1px solid #e5e7eb;
@@ -140,6 +140,11 @@ button:hover,select:hover{border-color:#cbd5e1}
 .sup-item .del{border:1px solid #fecaca;background:#fff;color:#b91c1c;border-radius:8px;padding:6px 8px}
 .sup-addbtn{border:1px dashed #e5e7eb;background:#f8fafc;border-radius:10px;padding:8px}
 #qSupPresets .opt img{width:20px;height:20px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb}
+
+/* ▼ 약도 미리보기 크기 고정(과대 방지) */
+.route-up{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.route-up img{max-width:220px;max-height:160px;border:1px solid #e5e7eb;border-radius:10px;object-fit:contain;background:#f8fafc}
+.route-up input[type="file"]{border:1px dashed #e5e7eb;padding:8px;border-radius:10px;background:#fff}
 
 /* ====== 공통 모달 ====== */
 .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:16px;z-index:1800;}
@@ -304,7 +309,8 @@ button:hover,select:hover{border-color:#cbd5e1}
   white-space:pre-wrap; white-space:break-spaces;
 }
 .share-card.vertical.v5 .full-map .body{flex:1 1 auto;display:flex;align-items:center;justify-content:center;background:#f8fafc}
-.share-card.vertical.v5 .full-map img{width:100%;height:100%;object-fit:var(--mapfit,cover);border-radius:0}
+/* 기본은 contain, 이벤트/옵션에 따라 max-height로 제어 */
+.share-card.vertical.v5 .full-map img{max-width:100%;height:auto;object-fit:contain;border-radius:0}
 
 /* ↔ 상세/약도 드래그 비율 */
 .share-card.vertical.v5 .scv-full.split{
@@ -476,7 +482,10 @@ button:hover,select:hover{border-color:#cbd5e1}
       <div class="qextra">
         <div class="field">
           <label>약도 이미지(선택)</label>
-          <div class="route-up"><img id="qRoutePreview" alt="" /><input id="qRouteFile" type="file" accept="image/*" /></div>
+          <div class="route-up">
+            <img id="qRoutePreview" alt="" />
+            <input id="qRouteFile" type="file" accept="image/*" />
+          </div>
         </div>
 
         <div class="field">
@@ -491,7 +500,12 @@ button:hover,select:hover{border-color:#cbd5e1}
         </div>
       </div>
 
-      <div class="quick-actions"><button type="button" id="qCancel">취소</button><button class="primary" type="submit" id="qSave" disabled>저장</button></div>
+      <div class="quick-actions">
+        <button type="button" id="qSaveDef" class="ghost">기본값 저장</button>
+        <span style="flex:1"></span>
+        <button type="button" id="qCancel">취소</button>
+        <button class="primary" type="submit" id="qSave" disabled>저장</button>
+      </div>
     </form>
   </div>
 
@@ -564,11 +578,11 @@ button:hover,select:hover{border-color:#cbd5e1}
         </div>
       </div>
 
-      <!-- ===== 카드 레이아웃 탭 (담당자 사진 px 추가됨) ===== -->
+      <!-- ===== 카드 레이아웃 탭 ===== -->
       <div id="tab-layout" class="tabpane" style="display:none">
         <div class="list" id="layoutBlockList"></div>
         <div class="row" style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px">
-          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px">
             <label class="mini">여백 스케일<input id="optSpace" type="range" min="0.65" max="1.15" step="0.05" /></label>
             <label class="mini">글자 스케일<input id="optFont" type="range" min="0.90" max="1.20" step="0.05" /></label>
             <label class="mini">채움 대상
@@ -586,9 +600,11 @@ button:hover,select:hover{border-color:#cbd5e1}
                 <option value="blocks">아래 섹션</option>
               </select>
             </label>
-            <!-- ★ 추가: 담당자 사진 px -->
             <label class="mini">담당자 사진(px)
               <input id="optAvatarSize" type="number" min="72" max="220" step="2" />
+            </label>
+            <label class="mini">약도 최대 높이(px)
+              <input id="optRouteMax" type="number" min="120" max="800" step="10" />
             </label>
           </div>
           <div class="controls"><button id="btnLayoutSave2">옵션 저장</button></div>
@@ -709,7 +725,7 @@ function storageWritable(){
   catch(e){ return false; }
 }
 const STORAGE_OK = storageWritable();
-const MemoryStore = { presets:null, events:[] };
+const MemoryStore = { presets:null, events:[], qdef:null };
 
 function showModeBanner(){
   const badge=$('#modeBadge'), banner=$('#roBanner'), msg=$('#roMsg'), act=$('#roAct');
@@ -783,7 +799,7 @@ const CONFIG={ timezone:'Asia/Seoul', weekBoard:{startOnMonday:true, showSunday:
         supportersSize:40,
         supportersPos:'right',
         align:{ header:'left', timePos:'inline', hero:'center', name:'center', supporters:'right' },
-        mapStyle:'cover',
+        mapStyle:'contain',
         headerShowTime:true,
         supportersOffsetX:0, supportersOffsetY:0,
         heroOffsetX:0, heroOffsetY:0,
@@ -795,13 +811,22 @@ const CONFIG={ timezone:'Asia/Seoul', weekBoard:{startOnMonday:true, showSunday:
         footer1:'Awaken the Movement🌊',
         footer2:'tmThis is ZiNRAi🔥',
         infoAnchor:'right', infoWidthPct:56, infoOffsetX:0, infoOffsetY:0, infoValign:'start', heroGap:14,
-        splitRatio:56
+        splitRatio:56,
+        /* ★ 추가: 약도 최대 높이(px) (이벤트의 routeMaxPx가 있으면 그 값을 우선) */
+        routeMaxPx:260
       }
     }
   }
 };
 
-/* ===== PresetStore / EventStore ===== */
+/* ===== 안전 UUID ===== */
+function uuid(){
+  try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch(e){}
+  const rnd = n => Array.from({length:n}, () => Math.floor(Math.random()*16).toString(16)).join('');
+  return `${rnd(8)}-${rnd(4)}-4${rnd(3)}-${(8+Math.floor(Math.random()*4)).toString(16)}${rnd(3)}-${rnd(12)}`;
+}
+
+/* ===== Stores ===== */
 const PresetStore=(()=>{const KEY='team-calendar-presets-v17-zinrai';
   const load=()=>SHARE_DATA?.presets?SHARE_DATA.presets:(STORAGE_OK?Object.assign(structuredClone(CONFIG.defaultPresets), JSON.parse(localStorage.getItem(KEY)||'{}')):(MemoryStore.presets||(MemoryStore.presets=structuredClone(CONFIG.defaultPresets))));
   const save=p=>{ if(SHARE_DATA) return; try{ if(STORAGE_OK) localStorage.setItem(KEY,JSON.stringify(p)); else MemoryStore.presets=JSON.parse(JSON.stringify(p)); }catch(e){console.error(e); toast('설정 저장 실패: 브라우저 저장공간을 확인하세요.');} };
@@ -811,22 +836,7 @@ let PRESETS=PresetStore.load();
 
 const EventStore=(()=>{const KEY='team-calendar-events-v3';
   const read=()=>SHARE_DATA?.events?SHARE_DATA.events:(STORAGE_OK?JSON.parse(localStorage.getItem(KEY)||'[]'):(MemoryStore.events||[]));
-
-  // ✅ 실패해도 throw하지 않고 메모리로 fallback
-  const write=(rows)=>{
-    if(SHARE_DATA) return true;
-    try{
-      if(STORAGE_OK){ localStorage.setItem(KEY, JSON.stringify(rows)); }
-      else{ MemoryStore.events = JSON.parse(JSON.stringify(rows)); }
-      return true;
-    }catch(e){
-      console.error(e);
-      MemoryStore.events = JSON.parse(JSON.stringify(rows));
-      toast('디스크 저장이 제한되어 <임시 저장>으로 전환했습니다.');
-      return false;
-    }
-  };
-
+  const write=(rows)=>{ if(SHARE_DATA) return true; try{ if(STORAGE_OK) localStorage.setItem(KEY, JSON.stringify(rows)); else MemoryStore.events = JSON.parse(JSON.stringify(rows)); return true; }catch(e){ console.error(e); MemoryStore.events = JSON.parse(JSON.stringify(rows)); toast('디스크 저장이 제한되어 <임시 저장>으로 전환했습니다.'); return false; } };
   function list(){
     return read().map(r=>({
       id:r.id, title:r.title, start:r.start, end:r.end, allDay:!!r.allDay,
@@ -836,12 +846,11 @@ const EventStore=(()=>{const KEY='team-calendar-events-v3';
         locId:r.locId||'', slotId:r.slotId||'', instrId:r.instrId||'',
         meetingId:r.meetingId||'', meetingName:r.meetingName||'',
         address:r.address||'', map:r.map||'',
-        routeImage:r.routeImage||'', supporters:r.supporters||[],
-        heroPhoto:r.heroPhoto||'', desc:r.desc||'', color:r.color
+        routeImage:r.routeImage||'', /* ★ */ routeMaxPx:r.routeMaxPx||undefined,
+        supporters:r.supporters||[], heroPhoto:r.heroPhoto||'', desc:r.desc||'', color:r.color
       }
     }));
   }
-
   async function upsert(ev){
     if(SHARE_DATA){ toast('뷰어 모드에서는 저장할 수 없습니다.'); return {ok:false, ev}; }
     const rows = read();
@@ -853,8 +862,8 @@ const EventStore=(()=>{const KEY='team-calendar-events-v3';
       locId:ep.locId||'', slotId:ep.slotId||'', instrId:ep.instrId||'',
       meetingId:ep.meetingId||'', meetingName:ep.meetingName||'',
       address:ep.address||'', map:ep.map||'',
-      routeImage:ep.routeImage||'', supporters:ep.supporters||[],
-      heroPhoto:ep.heroPhoto||'', desc:ep.desc||'',
+      routeImage:ep.routeImage||'', /* ★ */ routeMaxPx:ep.routeMaxPx||undefined,
+      supporters:ep.supporters||[], heroPhoto:ep.heroPhoto||'', desc:ep.desc||'',
       color:ep.color||ev.backgroundColor||'#4f46e5'
     };
     const i = rows.findIndex(r=>r.id===id);
@@ -862,28 +871,26 @@ const EventStore=(()=>{const KEY='team-calendar-events-v3';
     const ok = write(rows);
     return {ok, ev:{...ev, id}};
   }
-
   async function remove(id){
     if(SHARE_DATA) return false;
     const rows = read().filter(r=>r.id!==id);
     return write(rows);
   }
-
   return {list,upsert,remove,KEY};
 })();
+
+/* ★ 빠른설정 기본값 저장소 */
+const QuickDefaultsStore=(()=>{ const KEY='team-calendar-qdefaults-v1';
+  const load=()=>{ if(SHARE_DATA) return {}; try{ return STORAGE_OK? JSON.parse(localStorage.getItem(KEY)||'{}') : (MemoryStore.qdef||{});}catch(e){return {}}; };
+  const save=d=>{ if(SHARE_DATA) return; try{ if(STORAGE_OK) localStorage.setItem(KEY, JSON.stringify(d)); else MemoryStore.qdef=d; }catch(e){ console.error(e); } };
+  return {load,save,KEY};
+})();
+let QUICKDEF = QuickDefaultsStore.load();
 
 /* ===== Utils ===== */
 const $=(q,r=document)=>r.querySelector(q), $$=(q,r=document)=>[...r.querySelectorAll(q)];
 const fmt=(d,opt)=>new Date(d).toLocaleString('ko-KR',{...opt,hour12:false,timeZone:CONFIG.timezone});
 const toDateInput=d=>{const z=new Date(d); z.setMinutes(z.getMinutes()-z.getTimezoneOffset()); return z.toISOString().slice(0,10);};
-// --- Safe UUID (crypto 없이도 동작) ---
-function uuid(){
-  try{
-    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-  }catch(e){}
-  const rnd = n => Array.from({length:n}, () => Math.floor(Math.random()*16).toString(16)).join('');
-  return `${rnd(8)}-${rnd(4)}-4${rnd(3)}-${(8+Math.floor(Math.random()*4)).toString(16)}${rnd(3)}-${rnd(12)}`;
-}
 function textColorFor(bg){if(!bg)return'#111';const h=bg.replace('#','');const r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16);const yiq=(r*299+g*587+b*114)/1000;return yiq>=160?'#111':'#fff';}
 function esc(s){return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 function startOfWeek(date){const d=new Date(date);const day=d.getDay();const diff=(day===0?-6:1-day);d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d;}
@@ -1088,10 +1095,16 @@ function buildCardHTML(data, layout){
   const supRow = supRowNeeded ? `<div class="scv-suprow">${supHtml}</div>` : '';
   const heroBlock = (opt.supportersPos==='above') ? (supRow + heroWrap) : (heroWrap + (opt.supportersPos==='below'?supRow:'')); 
 
+  /* ★ 약도 크기: 이벤트의 routeMaxPx > 옵션 routeMaxPx > 기본 */
+  const routeMaxPx = data.routeMaxPx || opt.routeMaxPx || 260;
   const descBlock = (L.show?.desc && showIf(data.desc))
     ? `<div class="full-desc"><div class="hd">상세내용</div><div class="body">${esc(data.desc)}</div></div>` : '';
   const mapBlock  = (L.show?.map && (showIf(data.routeImage)||!opt.hideEmpty))
-    ? `<div class="full-map"><div class="hd">약도</div><div class="body">${data.routeImage?`<img src="${data.routeImage}" alt="약도">`:`<div style="color:#94a3b8">약도 이미지</div>`}</div></div>` : '';
+    ? `<div class="full-map"><div class="hd">약도</div><div class="body">${
+        data.routeImage
+          ? `<img src="${data.routeImage}" alt="약도" style="max-height:${routeMaxPx}px; width:auto; height:auto; object-fit:contain;">`
+          : `<div style="color:#94a3b8">약도 이미지</div>`
+      }</div></div>` : '';
 
   let content='';
   if((opt.fill||'both')==='both'){
@@ -1128,6 +1141,7 @@ function buildCardFromEvent(ev){
     color: ep.color||ev.backgroundColor||'#7c3aed', meeting: meetName, time: timeLabel(ev),
     personName: ins, photo: heroPhoto, initials:(ins||'').slice(0,2),
     place: ep.location||'', address: address||'', routeImage: ep.routeImage||'',
+    routeMaxPx: ep.routeMaxPx || undefined, /* ★ */
     desc: ep.desc || PRESETS.meetings.find(m=>m.id===ep.meetingId)?.desc || '',
     supporters: ep.supporters||[], dims: getCardDims()
   }, PRESETS.cardLayout);
@@ -1189,14 +1203,13 @@ async function copyEventCardToClipboard(){ if(!lastEventForCard) return;
   catch{toast('복사 불가한 환경입니다. PNG 저장을 이용하세요.');}
 }
 
-/* ===== 새로 추가: 사진 사이즈 직접 조절 ===== */
+/* ===== 새로 추가: 사진 사이즈 직접 조절 + 클릭 변경 ===== */
 function attachCardEditableInteractions(){
   const root = document.querySelector('#evCard .share-card.vertical.v5');
   const preview = document.querySelector('#evCard .card-preview');
   if(!root || !preview) return;
   const scaleK = parseFloat(preview.style.getPropertyValue('--k')) || getFitScale();
 
-  /* 파일 선택 */
   const pickImage = ()=>new Promise(resolve=>{
     const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
     inp.onchange=()=>{const f=inp.files?.[0]; if(!f){resolve('');return;}
@@ -1220,7 +1233,6 @@ function attachCardEditableInteractions(){
       toast('담당자 사진을 변경했습니다');
     }, {passive:true});
 
-    /* 히어로 사진 사이즈 핸들 */
     installResizeHandle(heroAvatar, {
       scaleK,
       min:72, max:240,
@@ -1256,7 +1268,6 @@ function attachCardEditableInteractions(){
       const img=m.querySelector('img, div[style*="border-radius:50%"]');
       const cap=m.querySelector('.cap');
 
-      // 이름 클릭 -> 변경
       cap?.addEventListener('click', async (e)=>{
         e.stopPropagation();
         if(!lastEventForCard || SHARE_DATA) return;
@@ -1271,7 +1282,6 @@ function attachCardEditableInteractions(){
         renderCurrentCardPreview(); toast('서포터 이름을 변경했습니다');
       }, {passive:true});
 
-      // 사진 클릭 -> 바꾸기
       img?.addEventListener('click', async (e)=>{
         if(e.target.closest('.img-resize-handle')) return;
         e.stopPropagation();
@@ -1285,7 +1295,6 @@ function attachCardEditableInteractions(){
         renderCurrentCardPreview(); toast('서포터 사진을 변경했습니다');
       }, {passive:true});
 
-      // 사이즈 조절 핸들
       if(img){
         installResizeHandle(img, {
           scaleK,
@@ -1521,15 +1530,29 @@ function attachCardEditableInteractions(){
 }
 
 /* ===== QuickAdd ===== */
-let qState={date:new Date(),locId:null,slotId:null,instrId:null,meetingId:null,routeImage:'',supporters:[],editingId:null};
+let qState={date:new Date(),locId:null,slotId:null,instrId:null,meetingId:null,routeImage:'',routeMaxPx:undefined,supporters:[],editingId:null};
 function initQuickAdd(){
   if(SHARE_DATA) return;
   renderPresetOptions();
   $('#qCancel').onclick=closeQuickAdd; $('#qClose').onclick=closeQuickAdd;
-  $('#qRouteFile').onchange=e=>readImageFileToDataUrl(e.target.files[0]).then(url=>{qState.routeImage=url||''; $('#qRoutePreview').src=qState.routeImage||'';});
-  $('#qSupAdd').onclick=()=>{qState.supporters.push({id:uuid(),name:'',photo:''}); renderSupList();};
 
-  // ✅ 저장 핸들러: 저장 실패해도 UI에는 반영 + 안내토스트
+  $('#qRouteFile').onchange=e=>{
+    const f=e.target.files[0];
+    readImageFileToDataUrl(f).then(url=>{
+      qState.routeImage=url||'';
+      const img = $('#qRoutePreview');
+      img.src=qState.routeImage||'';
+      // 미리보기 렌더 후 표시 높이를 routeMaxPx로 사용
+      setTimeout(()=>{
+        const h = Math.round(img.getBoundingClientRect().height || 160);
+        qState.routeMaxPx = h;
+      },0);
+    });
+  };
+
+  $('#qSupAdd').onclick=()=>{qState.supporters.push({id:uuid(),name:'',photo:''}); renderSupList();};
+  $('#qSaveDef').onclick=()=>{ saveQuickDefaults(); toast('빠른설정 기본값을 저장했습니다'); };
+
   document.getElementById('quickForm').addEventListener('submit', async e=>{
     e.preventDefault();
     if(!(qState.locId && qState.slotId && qState.instrId && qState.meetingId)) return;
@@ -1539,7 +1562,6 @@ function initQuickAdd(){
     const ins = PRESETS.instructors.find(x=>x.id===qState.instrId);
     const meet= PRESETS.meetings.find(x=>x.id===qState.meetingId);
 
-    // 시간 계산
     let startISO, endISO, allDay=false;
     const d=new Date(qState.date);
     if(slot.allDay){
@@ -1567,19 +1589,23 @@ function initQuickAdd(){
         meetingId:meet?.id||'', meetingName:meet?.label||'',
         address:loc.address||'', map:loc.map||'',
         routeImage:qState.routeImage||'',
+        /* ★ 약도 높이(px) 저장 */
+        routeMaxPx:qState.routeMaxPx || PRESETS.cardLayout.options.routeMaxPx || 260,
         supporters:qState.supporters.map(s=>({name:s.name||'', photo:s.photo||''})),
         desc: (document.getElementById('qMemo').value||''),
         color
       }
     };
 
-    // 저장 시도
     const {ok} = await EventStore.upsert(eventData);
 
-    // 캘린더 반영(성공/실패와 무관하게 UI에는 추가)
+    // UI 반영
     const exist = calendar.getEventById(id);
     if(exist) exist.remove();
     calendar.addEvent(eventData);
+
+    // ★ 빠른설정 기본값 자동 저장(마지막 선택 유지)
+    saveQuickDefaults();
 
     closeQuickAdd();
     toast(qState.editingId ? '수정했습니다' : (ok ? '추가되었습니다' : '임시로 추가되었습니다(저장 제한)'));
@@ -1622,7 +1648,7 @@ function ensureQuickAddFit(x,y){
 window.addEventListener('resize',()=>{const qa=$('#quickAdd'); if(qa && qa.style.display!=='none'){ ensureQuickAddFit(); }});
 function openQuickAdd({date,clientX,clientY,editEvent=null}){
   if(SHARE_DATA) return;
-  qState={date,locId:null,slotId:null,instrId:null,meetingId:null,routeImage:'',supporters:[],editingId:null};
+  qState={date,locId:null,slotId:null,instrId:null,meetingId:null,routeImage:'',routeMaxPx:undefined,supporters:[],editingId:null};
   $('#qMemo').value=''; $('#qRoutePreview').removeAttribute('src'); $('#qRouteFile').value='';
   if(editEvent){
     qState.editingId=editEvent.id;
@@ -1630,10 +1656,25 @@ function openQuickAdd({date,clientX,clientY,editEvent=null}){
     qState.instrId=editEvent.extendedProps?.instrId||PRESETS.instructors.find(x=>x.label===editEvent.extendedProps?.instructor)?.id;
     qState.meetingId=editEvent.extendedProps?.meetingId||PRESETS.meetings.find(x=>x.label===editEvent.extendedProps?.meetingName)?.id;
     if(editEvent.allDay) qState.slotId='allday'; else {const s=hhmm(editEvent.start),e=hhmm(editEvent.end||editEvent.start); qState.slotId=PRESETS.timeslots.find(t=>!t.allDay&&t.start===s&&t.end===e)?.id||null;}
-    $('#qMemo').value=editEvent.extendedProps?.desc||''; qState.routeImage=editEvent.extendedProps?.routeImage||''; if(qState.routeImage) $('#qRoutePreview').src=qState.routeImage;
+    $('#qMemo').value=editEvent.extendedProps?.desc||''; 
+    qState.routeImage=editEvent.extendedProps?.routeImage||''; 
+    qState.routeMaxPx=editEvent.extendedProps?.routeMaxPx||undefined;
+    if(qState.routeImage){ $('#qRoutePreview').src=qState.routeImage; setTimeout(()=>{ const h = Math.round($('#qRoutePreview').getBoundingClientRect().height||160); if(!qState.routeMaxPx) qState.routeMaxPx=h; },0); }
     qState.supporters=(editEvent.extendedProps?.supporters||[]).map(s=>({id:uuid(),name:s.name||'',photo:s.photo||''})); $('#qHeading').textContent='일정 수정';
-  }else $('#qHeading').textContent='빠른 일정 추가';
-  renderPresetOptions(); selectLoc(qState.locId,false); selectTime(qState.slotId,false); selectInstr(qState.instrId,false); selectMeet(qState.meetingId,false); renderSupList(); renderSupPresets(); updateSummary();
+  }else{
+    // ★ 빠른설정 기본값 자동 적용
+    if(QUICKDEF){
+      qState.locId = QUICKDEF.locId || null;
+      qState.slotId = QUICKDEF.slotId || null;
+      qState.instrId = QUICKDEF.instrId || null;
+      qState.meetingId = QUICKDEF.meetingId || null;
+    }
+    $('#qHeading').textContent='빠른 일정 추가';
+  }
+
+  renderPresetOptions();
+  selectLoc(qState.locId,false); selectTime(qState.slotId,false); selectInstr(qState.instrId,false); selectMeet(qState.meetingId,false);
+  renderSupList(); renderSupPresets(); updateSummary();
 
   initMemoEnhance();
   ensureQuickAddFit(clientX,clientY);
@@ -1642,6 +1683,14 @@ function closeQuickAdd(){
   const qa=$('#quickAdd');
   qa.style.display='none';
   qa.classList.remove('show');
+}
+function saveQuickDefaults(){
+  QuickDefaultsStore.save({
+    locId:qState.locId||null,
+    slotId:qState.slotId||null,
+    instrId:qState.instrId||null,
+    meetingId:qState.meetingId||null
+  });
 }
 function renderSupList(){
   const box=$('#qSupList'); box.innerHTML='';
@@ -1738,12 +1787,12 @@ function initPresetModal(){
 
   $('#btnOutSave').onclick=()=>{let size=$('#outCardSize').value; if(size==='custom'){ const w=Math.max(600,+$('#outW').value||1080), h=Math.max(600,+$('#outH').value||1350); size=`${w}x${h}`; } PRESETS.output={title:$('#outTitle').value.trim(), sub:$('#outSub').value.trim(), accent:$('#outAccent').value||'#4f46e5', cardSize:size}; PresetStore.save(PRESETS); toast('출력 설정 저장됨');};
 
-  $('#btnExport').onclick=()=>{ const data={presets:PRESETS,version:'v18.6'}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-settings.json'; a.click(); };
+  $('#btnExport').onclick=()=>{ const data={presets:PRESETS,version:'v18.7'}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-settings.json'; a.click(); };
   $('#btnImport').onclick=()=>$('#importFile').click();
   $('#importFile').onchange=async e=>{try{const f=e.target.files[0]; if(!f) return; const text=await f.text(); const d=JSON.parse(text||'{}.'); if(!d.presets && !d.events) throw 0; if(d.presets) PRESETS=d.presets; PresetStore.save(PRESETS); if(d.events){ if(STORAGE_OK) localStorage.setItem(EventStore.KEY, JSON.stringify(d.events)); else MemoryStore.events=d.events; } renderPresetLists(); renderPresetOptions(); renderLayoutDesigner(); initShareModal(); renderWeekBoard(); toast('설정을 불러왔습니다');}catch{toast('가져오기 실패: JSON을 확인하세요.');}};
   $('#btnReset').onclick=()=>{ if(confirm('모든 설정을 기본값으로 되돌릴까요? (일정은 유지)')){ PRESETS=structuredClone(CONFIG.defaultPresets); PresetStore.save(PRESETS); renderPresetLists(); renderPresetOptions(); renderLayoutDesigner(); initShareModal(); renderWeekBoard(); toast('초기화했습니다'); }};
 
-  /* ★ 저장 핸들러: 아바타 px 포함 */
+  /* 저장 핸들러: 아바타 px + 약도 최대 px 포함 */
   $('#btnLayoutSave2').onclick=()=>{ 
     const o=PRESETS.cardLayout.options;
     o.spaceScale=+($('#optSpace').value||.8);
@@ -1752,6 +1801,7 @@ function initPresetModal(){
     o.infoLayout=$('#optInfoLayout').value;
     o.sizes=o.sizes||{};
     o.sizes.avatar = Math.max(72, Math.min(220, +($('#optAvatarSize').value || (o.sizes.avatar ?? 150))));
+    o.routeMaxPx = Math.max(120, Math.min(800, +($('#optRouteMax').value || (o.routeMaxPx ?? 260))));
     PresetStore.save(PRESETS);
     try{ renderCurrentCardPreview(); }catch(e){}
     toast('레이아웃 옵션 저장됨');
@@ -1815,11 +1865,9 @@ function renderLayoutDesigner(){
   $('#optFont').value=o.fontScale??1.10;
   $('#optFill').value=o.fill||'both'; 
   $('#optInfoLayout').value=o.infoLayout||'side';
-  $('#outTitle').value=PRESETS.output?.title||'TEAM CHANCE 일정'; 
-  $('#outSub').value=PRESETS.output?.sub||'주간 타임표';
-  /* ★ 추가: 담당자 사진(px) 초기값 세팅 */
   const avatarPx = (o.sizes?.avatar ?? 150);
-  const oa = $('#optAvatarSize'); if(oa) oa.value = avatarPx;
+  $('#optAvatarSize').value = avatarPx;
+  $('#optRouteMax').value = o.routeMaxPx ?? 260;
 }
 
 /* ===== 출력 옵션 ===== */
@@ -1920,8 +1968,9 @@ function buildCardTuner(){
     <div class="grp g3">
       <label>아바타(px)<input id="qtAvatar" type="number" min="72" max="200" step="2" value="${o.sizes?.avatar??150}"></label>
       <label>서포터(px)<input id="qtSupSize" type="number" min="24" max="72" step="2" value="${o.supportersSize??40}"></label>
-      <label>약도스타일<select id="qtMapStyle"><option value="contain" ${o.mapStyle==='contain'?'selected':''}>Contain</option><option value="cover" ${o.mapStyle!=='contain'?'selected':''}>Cover</option></select></label>
+      <label>약도스타일<select id="qtMapStyle"><option value="contain" ${o.mapStyle!=='cover'?'selected':''}>Contain</option><option value="cover" ${o.mapStyle==='cover'?'selected':''}>Cover</option></select></label>
       <label>시간표시<select id="qtHeaderTime"><option value="on" ${o.headerShowTime!==false?'selected':''}>표시</option><option value="off" ${o.headerShowTime===false?'selected':''}>숨김</option></select></label>
+      <label>약도 최대 높이(px)<input id="qtRouteMax" type="number" min="120" max="800" step="10" value="${o.routeMaxPx ?? 260}"></label>
     </div>
 
     <div class="grp g3">
@@ -2055,9 +2104,9 @@ function buildCardTuner(){
   wrap.querySelectorAll('[data-preset]').forEach(b=>{
     b.onclick=()=>{
       const p=b.dataset.preset;
-      if(p==='compact'){ setQT({spaceScale:.72,fontScale:1.1,fill:'both',infoLayout:'side',hideEmpty:true, f:{meeting:38,time:16,name:18,label:12,value:15,footer:12,desc:15,supcap:12,brand:14}, sizes:{avatar:96}, supportersSize:36, supporters:'right', supportersPos:'right', supportersOffsetX:0, supportersOffsetY:0, splitRatio:56}); }
-      if(p==='readable'){ setQT({spaceScale:.85,fontScale:1.05,fill:'both',infoLayout:'side',hideEmpty:true, f:{meeting:42,time:18,name:20,label:13,value:16,footer:12,desc:16,supcap:12,brand:14}, sizes:{avatar:110}, supportersSize:40, supporters:'center', supportersPos:'below', supportersOffsetX:0, supportersOffsetY:0, splitRatio:56}); }
-      if(p==='poster'){ setQT({spaceScale:.9,fontScale:1.12,fill:'both',infoLayout:'side',hideEmpty:false, f:{meeting:50,time:24,name:26,label:14,value:18,footer:12,desc:18,supcap:13,brand:16}, sizes:{avatar:140}, supportersSize:48, supportersPos:'above', supportersOffsetX:0, supportersOffsetY:0, splitRatio:60}); }
+      if(p==='compact'){ setQT({spaceScale:.72,fontScale:1.1,fill:'both',infoLayout:'side',hideEmpty:true, f:{meeting:38,time:16,name:18,label:12,value:15,footer:12,desc:15,supcap:12,brand:14}, sizes:{avatar:96}, supportersSize:36, supporters:'right', supportersPos:'right', supportersOffsetX:0, supportersOffsetY:0, splitRatio:56, routeMaxPx:220}); }
+      if(p==='readable'){ setQT({spaceScale:.85,fontScale:1.05,fill:'both',infoLayout:'side',hideEmpty:true, f:{meeting:42,time:18,name:20,label:13,value:16,footer:12,desc:16,supcap:12,brand:14}, sizes:{avatar:110}, supportersSize:40, supporters:'center', supportersPos:'below', supportersOffsetX:0, supportersOffsetY:0, splitRatio:56, routeMaxPx:260}); }
+      if(p==='poster'){ setQT({spaceScale:.9,fontScale:1.12,fill:'both',infoLayout:'side',hideEmpty:false, f:{meeting:50,time:24,name:26,label:14,value:18,footer:12,desc:18,supcap:13,brand:16}, sizes:{avatar:140}, supportersSize:48, supportersPos:'above', supportersOffsetX:0, supportersOffsetY:0, splitRatio:60, routeMaxPx:300}); }
       applyQuickTuner(false);
     };
   });
@@ -2104,6 +2153,7 @@ function setQT(part){const g=id=>$('#'+id);
   if(part.supportersOffsetX!=null) g('qtSupX').value=part.supportersOffsetX;
   if(part.supportersOffsetY!=null) g('qtSupY').value=part.supportersOffsetY;
   if(part.splitRatio!=null) g('qtSplit').value=part.splitRatio;
+  if(part.routeMaxPx!=null) g('qtRouteMax').value=part.routeMaxPx;
 }
 function applyQuickTuner(save){
   const o=PRESETS.cardLayout.options;
@@ -2137,6 +2187,8 @@ function applyQuickTuner(save){
 
   if($('#qtFill').value==='both'){ o.splitRatio=+($('#qtSplit').value||o.splitRatio||56); }
 
+  o.routeMaxPx = Math.max(120, Math.min(800, +($('#qtRouteMax').value || (o.routeMaxPx ?? 260))));
+
   PRESETS.cardLayout.show.place=$('#qShowPlace').checked;
   PRESETS.cardLayout.show.address=$('#qShowAddr').checked;
   PRESETS.cardLayout.show.map=$('#qShowMap').checked;
@@ -2156,7 +2208,7 @@ function applyQuickTuner(save){
 
 /* ===== 공유 링크 ===== */
 function createShareLink(){
-  const payload={v:18.6,title:$('#calendarTitle').value||'팀 캘린더',presets:{
+  const payload={v:18.7,title:$('#calendarTitle').value||'팀 캘린더',presets:{
       locations:PRESETS.locations.map(({id,label,color,address,map})=>({id,label,color,address,map})),
       instructors:PRESETS.instructors.map(({id,label,photo})=>({id,label,photo})),
       supporters:(PRESETS.supporters||[]).map(({id,label,photo})=>({id,label,photo})),
@@ -2164,7 +2216,7 @@ function createShareLink(){
       meetings:PRESETS.meetings.map(m=>({id:m.id,label:m.label,desc:m.desc||''})),
       output:PRESETS.output||{}, cardLayout:PRESETS.cardLayout
     },
-    events:calendar.getEvents().map(ev=>({id:ev.id,title:ev.title,start:ev.start,end:ev.end,allDay:!!ev.allDay,color:ev.extendedProps?.color||ev.backgroundColor||'#4f46e5',location:ev.extendedProps?.location||'',instructor:ev.extendedProps?.instructor||'',locId:ev.extendedProps?.locId||'',slotId:ev.extendedProps?.slotId||'',instrId:ev.extendedProps?.instrId||'',meetingId:ev.extendedProps?.meetingId||'',meetingName:ev.extendedProps?.meetingName||'',address:ev.extendedProps?.address||'',map:ev.extendedProps?.map||'',routeImage:ev.extendedProps?.routeImage||'',heroPhoto:ev.extendedProps?.heroPhoto||'',supporters:(ev.extendedProps?.supporters||[]).map(s=>({name:s.name||'',photo:s.photo||'',size:s.size||undefined})),desc:ev.extendedProps?.desc||''}))};
+    events:calendar.getEvents().map(ev=>({id:ev.id,title:ev.title,start:ev.start,end:ev.end,allDay:!!ev.allDay,color:ev.extendedProps?.color||ev.backgroundColor||'#4f46e5',location:ev.extendedProps?.location||'',instructor:ev.extendedProps?.instructor||'',locId:ev.extendedProps?.locId||'',slotId:ev.extendedProps?.slotId||'',instrId:ev.extendedProps?.instrId||'',meetingId:ev.extendedProps?.meetingId||'',meetingName:ev.extendedProps?.meetingName||'',address:ev.extendedProps?.address||'',map:ev.extendedProps?.map||'',routeImage:ev.extendedProps?.routeImage||'',routeMaxPx:ev.extendedProps?.routeMaxPx||undefined,heroPhoto:ev.extendedProps?.heroPhoto||'',supporters:(ev.extendedProps?.supporters||[]).map(s=>({name:s.name||'',photo:s.photo||'',size:s.size||undefined})),desc:ev.extendedProps?.desc||''}))};
   const json=JSON.stringify(payload); const base64=btoa(unescape(encodeURIComponent(json))); const baseUrl=location.href.split('?')[0]; return baseUrl+'?s='+base64;
 }
 
@@ -2219,8 +2271,8 @@ function toast(msg){const t=$('#toast'); t.textContent=msg; t.classList.add('sho
 
 /* ===== 설정 백업(배너 버튼용) ===== */
 function exportSettings(){
-  const data={presets:PRESETS, events:EventStore.list().map(e=>({id:e.id,title:e.title,start:e.start,end:e.end,allDay:e.allDay,location:e.extendedProps.location,instructor:e.extendedProps.instructor,locId:e.extendedProps.locId,slotId:e.extendedProps.slotId,instrId:e.extendedProps.instrId,meetingId:e.extendedProps.meetingId,meetingName:e.extendedProps.meetingName,address:e.extendedProps.address,map:e.extendedProps.map,routeImage:e.extendedProps.routeImage,heroPhoto:e.extendedProps.heroPhoto,supporters:e.extendedProps.supporters,desc:e.extendedProps.desc,color:e.extendedProps.color}))};
-  const blob=new Blob([JSON.stringify({version:'v18.6',...data},null,2)],{type:'application/json'});
+  const data={presets:PRESETS, events:EventStore.list().map(e=>({id:e.id,title:e.title,start:e.start,end:e.end,allDay:e.allDay,location:e.extendedProps.location,instructor:e.extendedProps.instructor,locId:e.extendedProps.locId,slotId:e.extendedProps.slotId,instrId:e.extendedProps.instrId,meetingId:e.extendedProps.meetingId,meetingName:e.extendedProps.meetingName,address:e.extendedProps.address,map:e.extendedProps.map,routeImage:e.extendedProps.routeImage,routeMaxPx:e.extendedProps.routeMaxPx,heroPhoto:e.extendedProps.heroPhoto,supporters:e.extendedProps.supporters,desc:e.extendedProps.desc,color:e.extendedProps.color}))};
+  const blob=new Blob([JSON.stringify({version:'v18.7',...data},null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zinrai-calendar-backup.json'; a.click();
 }
 </script>
